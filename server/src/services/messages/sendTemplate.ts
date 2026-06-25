@@ -40,6 +40,7 @@ import {
   touchConversationForOutbound,
 } from '../conversations/window';
 import { categoryForTemplate } from './category';
+import { resolveTemplateHeaderMedia } from './templateHeaderMedia';
 
 /** Load the tenant's per-category charge rates; required for any billable send. */
 async function loadPricing(tenantId: string): Promise<Pricing> {
@@ -95,6 +96,13 @@ export async function sendTemplateMessage(
   const { ctx, provider: providerName } = await resolveTenantBspContext(tenantId);
   const provider = getBspProvider(providerName);
 
+  // 3b. Media-header templates (IMAGE/VIDEO/DOCUMENT) must carry a HEADER parameter or Meta
+  //     rejects the send (#132012). Reuse the approved sample: upload it once to a reusable
+  //     media id (cached per template) and attach it. Resolved BEFORE the message row + debit so
+  //     a missing/expired sample fails fast without charging the tenant. undefined for text-only
+  //     / text-header templates, leaving their send byte-for-byte unchanged.
+  const header = await resolveTemplateHeaderMedia(tenantId, template, ctx, provider);
+
   // 4. Persist the message row first so we have a stable id for the debit idempotency key.
   const now = Date.now();
   const conversationId = conversationIdForPhone(toPhone);
@@ -144,6 +152,7 @@ export async function sendTemplateMessage(
       templateName,
       languageCode,
       variables,
+      ...(header ? { header } : {}),
     });
 
     await prisma.message.update({

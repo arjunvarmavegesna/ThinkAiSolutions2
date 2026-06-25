@@ -4,6 +4,7 @@
  * {{n}} substituted by sample values, footer, and CTA / quick-reply buttons). No network, no
  * side effects — it mirrors what the recipient roughly sees so authors can iterate as they type.
  */
+import { useEffect, useState } from 'react';
 
 export type HeaderType = 'none' | 'text' | 'image' | 'video' | 'document';
 
@@ -63,11 +64,18 @@ function MediaHeader({
   fileName?: string;
   previewUrl?: string;
 }): JSX.Element {
-  if (type === 'image' && previewUrl) {
+  // Saved templates point at a Meta CDN sample URL that can expire (oe= param) and 404; on a
+  // load error, fall back to the icon placeholder instead of a broken-image glyph. Reset the
+  // error flag when the source changes (e.g. switching previewed templates).
+  const [imgError, setImgError] = useState(false);
+  useEffect(() => setImgError(false), [previewUrl]);
+
+  if (type === 'image' && previewUrl && !imgError) {
     return (
       <img
         src={previewUrl}
         alt={fileName ?? 'Header image'}
+        onError={() => setImgError(true)}
         className="mb-1.5 h-36 w-full rounded-lg object-cover"
       />
     );

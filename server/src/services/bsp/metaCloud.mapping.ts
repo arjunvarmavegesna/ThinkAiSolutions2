@@ -241,6 +241,20 @@ export function buildInteractiveBody(input: SendInteractiveInput): Record<string
  */
 export function buildTemplateBody(input: SendTemplateInput): Record<string, unknown> {
   const components: Array<Record<string, unknown>> = [];
+
+  // Media header (image/video/document templates): Meta needs a HEADER component whose single
+  // parameter carries the media by id (preferred) or public link. Omitting it on a media-header
+  // template is exactly the #132012 "expected IMAGE, received UNKNOWN" rejection. Header goes
+  // first so the components array mirrors the template's own component order.
+  if (input.header) {
+    const kind = input.header.format.toLowerCase(); // 'image' | 'video' | 'document'
+    const media: Record<string, unknown> = input.header.mediaId
+      ? { id: input.header.mediaId }
+      : { link: input.header.link };
+    if (kind === 'document' && input.header.filename) media.filename = input.header.filename;
+    components.push({ type: 'header', parameters: [{ type: kind, [kind]: media }] });
+  }
+
   if (input.variables.length > 0) {
     components.push({
       type: 'body',

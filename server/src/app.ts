@@ -63,6 +63,14 @@ export function createApp(): Express {
   // verifyAuth + requireTenant internally.)
   app.use('/api/media', express.json({ limit: '20mb' }), mediaRouter);
 
+  // Template HEADER sample uploads (image/video/document) also arrive as base64 JSON, and the
+  // cap is MAX_TEMPLATE_SAMPLE_BYTES = 16MB raw → ~21.4MB once base64-encoded. The default
+  // express.json() 100KB limit was rejecting every media header with a 413 (surfaced in the UI
+  // as "Internal server error"). Pre-parse JUST this path with a generous limit BEFORE the
+  // default parser; the route itself lives in templatesRouter under '/api' and still enforces
+  // verifyAuth + requireTenant + the post-decode size cap.
+  app.use('/api/templates/sample-media', express.json({ limit: '25mb' }));
+
   // Contact import arrives as chunked JSON rows (~1k/request), larger than the default API body.
   // Mounted BEFORE the default express.json() (and before the '/api' aggregator) so this limit
   // wins for contacts requests. The router still enforces verifyAuth + requireTenant internally.

@@ -44,12 +44,29 @@ export interface MarkReadAndTypeInput {
   messageId: string;
 }
 
+/**
+ * Media-header parameter for a template send (image/video/document header templates). Meta
+ * requires a HEADER component whose parameter carries the actual media, addressed by a
+ * pre-uploaded `mediaId` (preferred — survives reuse) OR a public `link` Meta can fetch.
+ */
+export interface TemplateHeaderMedia {
+  format: TemplateHeaderFormat;
+  /** Pre-uploaded Meta media id (mutually exclusive with link). */
+  mediaId?: string;
+  /** Public HTTPS URL Meta can fetch (mutually exclusive with mediaId). */
+  link?: string;
+  /** Document headers only — the filename shown to the recipient. */
+  filename?: string;
+}
+
 export interface SendTemplateInput {
   toPhone: string;
   templateName: string;
   languageCode: string;
   /** Positional body variables -> Meta template body components in order. */
   variables: string[];
+  /** Media header parameter — required for IMAGE/VIDEO/DOCUMENT header templates. */
+  header?: TemplateHeaderMedia;
 }
 
 /**

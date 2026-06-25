@@ -21,6 +21,8 @@ interface RawComponent {
   format?: string;
   text?: string;
   buttons?: RawButton[];
+  /** Media-header sample: Meta returns a CDN URL to the uploaded example here. */
+  example?: { header_handle?: string[] };
 }
 
 /** Parse the JSON-encoded `components` field into an array (empty on absence/malformed input). */
@@ -53,6 +55,8 @@ export function templateBodyText(t: TemplateDTO | null | undefined): string {
 export interface TemplatePreviewModel {
   headerType: HeaderType;
   headerText: string;
+  /** Meta CDN URL of the sample image for an IMAGE header (may expire / 404). */
+  headerImageUrl?: string;
   body: string;
   footer: string;
   buttons: ButtonDraft[];
@@ -83,6 +87,8 @@ export function toPreviewModel(t: TemplateDTO): TemplatePreviewModel {
 
   const body = templateBodyText(t);
   const headerType: HeaderType = header ? (HEADER_FORMAT[String(header.format).toUpperCase()] ?? 'none') : 'none';
+  const headerImageUrl =
+    headerType === 'image' ? header?.example?.header_handle?.[0] : undefined;
 
   const buttons: ButtonDraft[] = (buttonsComp?.buttons ?? []).map((b) => {
     const type = String(b.type).toUpperCase();
@@ -94,6 +100,7 @@ export function toPreviewModel(t: TemplateDTO): TemplatePreviewModel {
   return {
     headerType,
     headerText: headerType === 'text' ? (header?.text ?? '') : '',
+    headerImageUrl,
     body,
     footer: footer?.text ?? '',
     buttons,

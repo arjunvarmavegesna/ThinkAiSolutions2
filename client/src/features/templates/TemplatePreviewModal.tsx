@@ -47,6 +47,7 @@ export function TemplatePreviewModal({
             <TemplatePreview
               headerType={model.headerType}
               headerText={model.headerText}
+              headerPreviewUrl={model.headerImageUrl}
               body={model.body}
               placeholders={model.placeholders}
               // No stored sample values here — show raw {{n}} placeholders as-is.
