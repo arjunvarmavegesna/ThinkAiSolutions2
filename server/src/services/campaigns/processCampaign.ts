@@ -64,6 +64,10 @@ export async function processCampaign(tenantId: string, campaignId: string): Pro
   // Subscription gate (replaced the wallet-balance gate): if the plan is inactive, every
   // recipient fails. We check once up front; sendTemplateMessage also re-asserts per send.
   let subscriptionLapsed = !(await isActive(tenantId));
+  // Count failures that happen at SEND TIME (not delivery-time). Delivery failures arrive via Meta
+  // webhooks AFTER this loop finishes and are counted by applyCampaignRecipientStatus (increment).
+  // We must NOT include this in the final SET-based campaign update or we'd wipe out webhook counts.
+  let sendTimeFailures = 0;
 
   for (const row of rows) {
     if (row.status !== 'pending') continue;
@@ -77,6 +81,7 @@ export async function processCampaign(tenantId: string, campaignId: string): Pro
         updatedAt: msBig(now),
       });
       row.status = 'failed';
+      sendTimeFailures += 1;
       continue;
     }
 
@@ -95,6 +100,7 @@ export async function processCampaign(tenantId: string, campaignId: string): Pro
         updatedAt: msBig(now),
       });
       row.status = 'failed';
+      sendTimeFailures += 1;
       logger.warn(
         { tenantId, campaignId, phone: row.phone },
         'campaign: recipient skipped (unresolved merge tag)',
@@ -126,19 +132,28 @@ export async function processCampaign(tenantId: string, campaignId: string): Pro
         updatedAt: msBig(now),
       });
       row.status = 'failed';
+      sendTimeFailures += 1;
       logger.warn({ tenantId, campaignId, phone: row.phone, code }, 'campaign: recipient failed');
     }
   }
 
-  // Recompute counters from the (now-updated) recipient set so a resumed run stays accurate.
+  // Count only the recipients successfully submitted to Meta.
+  // Do NOT recompute 'failed' here — Meta delivery failures arrive via webhooks AFTER this loop
+  // and are counted by applyCampaignRecipientStatus using { increment: 1 }. A SET here would race
+  // and wipe out those increments. Send-time failures were already incremented above.
   const sent = rows.filter((r) => r.status === 'sent').length;
-  const failed = rows.filter((r) => r.status === 'failed').length;
-  const status = sent === 0 ? 'failed' : 'completed';
+  const status = sent === 0 && sendTimeFailures === rows.length ? 'failed' : 'completed';
 
   await prisma.campaign.update({
     where: { tenantId_id: { tenantId, id: campaignId } },
-    data: { submitted: rows.length, sent, failed, status, completedAt: msBig(Date.now()) },
+    data: {
+      submitted: rows.length,
+      sent,
+      ...(sendTimeFailures > 0 ? { failed: { increment: sendTimeFailures } } : {}),
+      status,
+      completedAt: msBig(Date.now()),
+    },
   });
 
-  logger.info({ tenantId, campaignId, sent, failed, total: rows.length }, 'campaign: drained');
+  logger.info({ tenantId, campaignId, sent, sendTimeFailures, total: rows.length }, 'campaign: drained');
 }
