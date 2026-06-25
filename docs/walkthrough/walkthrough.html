@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ThinkAiSolutions — Platform Walkthrough</title>
+<style>
+  :root{
+    --brand:#2563eb; --brand-dark:#1e54a8; --brand-light:#eff5ff;
+    --emerald:#0f766e; --emerald2:#10b981; --ink:#0f172a; --muted:#64748b;
+    --line:#e2e8f0; --canvas:#f3f5fc; --amber:#b45309; --rose:#be123c;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-print-color-adjust:exact; print-color-adjust:exact;}
+  body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); margin:0; font-size:13px; line-height:1.6;}
+  h1,h2,h3,h4{line-height:1.25; margin:0 0 .4em;}
+  h2{font-size:22px; color:var(--brand-dark); border-bottom:3px solid var(--brand);
+     padding-bottom:6px; margin-top:0;}
+  h3{font-size:16px; color:var(--ink); margin-top:1.4em;}
+  h4{font-size:13.5px; color:var(--emerald); text-transform:uppercase; letter-spacing:.04em;}
+  p{margin:.5em 0;}
+  code{background:#f1f5f9; padding:1px 5px; border-radius:4px; font-size:12px;
+       font-family:Consolas,Monaco,monospace; color:#0b4f6c;}
+  a{color:var(--brand);}
+  .muted{color:var(--muted);}
+  /* layout */
+  section{padding:34px 46px;}
+  section.page{page-break-before:always;}
+  /* cover */
+  .cover{height:100vh; display:flex; flex-direction:column; justify-content:center;
+    background:linear-gradient(160deg,#0b3b8c 0%,#1e54a8 45%,#0f766e 100%); color:#fff;
+    padding:0 70px;}
+  .cover .logo{width:64px;height:64px;border-radius:16px;background:#10b981;
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:30px;margin-bottom:26px;}
+  .cover h1{font-size:46px; margin:0 0 10px;}
+  .cover .sub{font-size:20px; opacity:.92; font-weight:300;}
+  .cover .chain{margin-top:34px; font-size:15px; opacity:.95; background:rgba(255,255,255,.12);
+    padding:14px 18px; border-radius:10px; display:inline-block;}
+  .cover .meta{margin-top:auto; padding-bottom:60px; font-size:13px; opacity:.8;}
+  /* boxes */
+  .note{background:var(--brand-light); border-left:4px solid var(--brand);
+    padding:12px 16px; border-radius:6px; margin:14px 0;}
+  .warn{background:#fff7ed; border-left:4px solid #f59e0b; padding:12px 16px; border-radius:6px; margin:14px 0;}
+  .good{background:#ecfdf5; border-left:4px solid var(--emerald2); padding:12px 16px; border-radius:6px; margin:14px 0;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  table{width:100%; border-collapse:collapse; margin:12px 0; font-size:12px;}
+  th,td{border:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top;}
+  th{background:#f8fafc; color:#334155; font-weight:600;}
+  tr:nth-child(even) td{background:#fcfdff;}
+  .pill{display:inline-block; padding:1px 9px; border-radius:999px; font-size:11px; font-weight:600;}
+  .pill.green{background:#ecfdf5;color:#047857;} .pill.blue{background:#eff6ff;color:#1d4ed8;}
+  .pill.amber{background:#fffbeb;color:#b45309;} .pill.rose{background:#fff1f2;color:#be123c;}
+  .pill.gray{background:#f1f5f9;color:#475569;}
+  /* steps */
+  ol.steps{counter-reset:s; list-style:none; padding-left:0; margin:14px 0;}
+  ol.steps>li{position:relative; padding:6px 0 12px 44px; border-left:2px solid var(--line); margin-left:14px;}
+  ol.steps>li:before{counter-increment:s; content:counter(s);
+    position:absolute; left:-15px; top:4px; width:28px; height:28px; border-radius:50%;
+    background:var(--brand); color:#fff; font-weight:700; font-size:13px;
+    display:flex; align-items:center; justify-content:center;}
+  ol.steps>li b{color:var(--ink);}
+  /* shots */
+  figure{margin:16px 0; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff;}
+  figure img{width:100%; display:block;}
+  figcaption{font-size:11.5px; color:var(--muted); padding:8px 12px; background:#f8fafc; border-top:1px solid var(--line);}
+  .tag-live{background:var(--emerald2);} .tag-ill{background:#94a3b8;}
+  .shot-tag{color:#fff; font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; margin-right:8px; text-transform:uppercase;}
+  /* mock UI */
+  .mock{border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff; margin:14px 0;}
+  .mock .bar{background:#fff; border-bottom:1px solid var(--line); padding:9px 14px; display:flex; align-items:center; gap:10px;}
+  .mock .bar .dot{width:26px;height:26px;border-radius:7px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;}
+  .mock .nav{display:flex; gap:16px; font-size:12px; color:var(--muted); margin-left:8px;}
+  .mock .nav .on{color:var(--brand); font-weight:600; border-bottom:2px solid var(--brand); padding-bottom:8px;}
+  .mock .body{padding:16px; background:var(--canvas);}
+  .card{background:#fff; border:1px solid var(--line); border-top:3px solid var(--brand);
+    border-radius:8px; padding:14px; box-shadow:0 1px 2px rgba(16,24,40,.05);}
+  .statrow{display:grid; grid-template-columns:repeat(4,1fr); gap:10px;}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px;}
+  .stat .l{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;}
+  .stat .v{font-size:24px;font-weight:700;}
+  .btn{background:var(--emerald);color:#fff;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;display:inline-block;}
+  .btn.blue{background:var(--brand);}
+  .kbd{font-family:Consolas,monospace;font-size:11px;background:#0f172a;color:#cbd5e1;padding:10px 14px;border-radius:8px;display:block;white-space:pre-wrap;margin:10px 0;}
+  .small{font-size:11.5px;}
+  .toc li{margin:5px 0;}
+  /* diagram helpers */
+  .diagram{margin:16px 0; text-align:center;}
+  .diagram svg{max-width:100%; height:auto;}
+  .legend{font-size:11px;color:var(--muted);text-align:center;margin-top:4px;}
+  ul.tight{margin:.4em 0;padding-left:20px;} ul.tight li{margin:3px 0;}
+  .two{column-count:2; column-gap:26px;}
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<section class="cover">
+  <div class="logo">T</div>
+  <h1>ThinkAiSolutions</h1>
+  <div class="sub">WhatsApp Business Platform — How the whole system works</div>
+  <div class="chain">Meta&nbsp;→&nbsp;Pinnacle (BSP)&nbsp;→&nbsp;<b>ThinkAiSolutions</b>&nbsp;→&nbsp;our clients</div>
+  <div class="meta">
+    A complete walkthrough — business model, architecture, every screen, and the money/message data flows.<br/>
+    Generated for the ThinkAiSolutions reseller platform · Phase 1 (MVP).
+  </div>
+</section>
+
+<!-- ============ TOC ============ -->
+<section class="page">
+  <h2>Contents</h2>
+  <ol class="toc">
+    <li><b>1 · What this platform is</b> — the reseller business model</li>
+    <li><b>2 · The big picture</b> — system architecture at a glance</li>
+    <li><b>3 · Who uses it</b> — roles &amp; what each one sees</li>
+    <li><b>4 · Logging in</b> — auth &amp; how role/tenant are resolved</li>
+    <li><b>5 · Reseller admin walkthrough</b> — onboarding a client, step by step</li>
+    <li><b>6 · Tenant admin &amp; agent walkthrough</b> — dashboard, templates, inbox</li>
+    <li><b>7 · The wallet</b> — recharge, GST, and per-message billing</li>
+    <li><b>8 · How a message is sent &amp; billed</b> — the core data flow</li>
+    <li><b>9 · How a reply comes back in</b> — inbound &amp; the 24-hour window</li>
+    <li><b>10 · Data model</b> — what is stored where</li>
+    <li><b>11 · Deployment &amp; security</b> — where it runs, how it's protected</li>
+    <li><b>12 · Glossary</b></li>
+  </ol>
+  <div class="note small"><b>About the screenshots:</b> screens behind a login can't be auto-captured without credentials, so this doc uses <span class="shot-tag tag-live">live</span> real captures for public screens (login, WABA connect) and clear <span class="shot-tag tag-ill">illustration</span> mock-ups (drawn to match the real emerald/blue UI) for the rest, alongside diagrams of the internal flows.</div>
+</section>
+
+<!-- ============ 1 · BUSINESS MODEL ============ -->
+<section class="page">
+  <h2>1 · What this platform is</h2>
+  <p>ThinkAiSolutions is a <b>multi-tenant WhatsApp Business API reseller platform</b>. WhatsApp messaging isn't sold directly by Meta to most businesses — it flows through a chain of providers. This platform's job is to let ThinkAiSolutions <b>become a reseller</b> in that chain: buy WhatsApp capacity wholesale and resell it to its own clients (clinics, pharmacies, labs, hotels, restaurants) under its own brand, dashboard, billing, and markup.</p>
+
+  <h3>The supply chain — today vs. the goal</h3>
+  <div class="diagram">
+  <svg viewBox="0 0 760 230" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,Arial" font-size="13">
+    <!-- current -->
+    <text x="10" y="20" font-weight="700" fill="#64748b">CURRENT (reseller-of-a-reseller)</text>
+    <g>
+      <rect x="10" y="32" width="110" height="40" rx="8" fill="#eff6ff" stroke="#2563eb"/><text x="65" y="57" text-anchor="middle" fill="#1e54a8" font-weight="600">Meta</text>
+      <rect x="150" y="32" width="120" height="40" rx="8" fill="#eff6ff" stroke="#2563eb"/><text x="210" y="57" text-anchor="middle" fill="#1e54a8" font-weight="600">Pinnacle (BSP)</text>
+      <rect x="300" y="32" width="120" height="40" rx="8" fill="#fef2f2" stroke="#be123c"/><text x="360" y="57" text-anchor="middle" fill="#be123c" font-weight="600">Twincles</text>
+      <rect x="450" y="32" width="130" height="40" rx="8" fill="#f1f5f9" stroke="#64748b"/><text x="515" y="51" text-anchor="middle" fill="#475569" font-weight="600">You</text><text x="515" y="66" text-anchor="middle" fill="#94a3b8" font-size="10">(buying retail)</text>
+      <rect x="610" y="32" width="120" height="40" rx="8" fill="#f1f5f9" stroke="#64748b"/><text x="670" y="57" text-anchor="middle" fill="#475569" font-weight="600">Clients</text>
+      <line x1="120" y1="52" x2="150" y2="52" stroke="#94a3b8" stroke-width="2" marker-end="url(#a)"/>
+      <line x1="270" y1="52" x2="300" y2="52" stroke="#94a3b8" stroke-width="2" marker-end="url(#a)"/>
+      <line x1="420" y1="52" x2="450" y2="52" stroke="#94a3b8" stroke-width="2" marker-end="url(#a)"/>
+      <line x1="580" y1="52" x2="610" y2="52" stroke="#94a3b8" stroke-width="2" marker-end="url(#a)"/>
+    </g>
+    <!-- goal -->
+    <text x="10" y="135" font-weight="700" fill="#0f766e">THE GOAL (you ARE the reseller — replace Twincles)</text>
+    <g>
+      <rect x="10" y="148" width="110" height="44" rx="8" fill="#eff6ff" stroke="#2563eb"/><text x="65" y="175" text-anchor="middle" fill="#1e54a8" font-weight="600">Meta</text>
+      <rect x="150" y="148" width="120" height="44" rx="8" fill="#eff6ff" stroke="#2563eb"/><text x="210" y="175" text-anchor="middle" fill="#1e54a8" font-weight="600">Pinnacle (BSP)</text>
+      <rect x="300" y="148" width="160" height="44" rx="8" fill="#ecfdf5" stroke="#10b981" stroke-width="2"/><text x="380" y="168" text-anchor="middle" fill="#0f766e" font-weight="700">ThinkAiSolutions</text><text x="380" y="183" text-anchor="middle" fill="#0f766e" font-size="10">(this platform)</text>
+      <rect x="490" y="148" width="130" height="44" rx="8" fill="#f1f5f9" stroke="#64748b"/><text x="555" y="175" text-anchor="middle" fill="#475569" font-weight="600">Your clients</text>
+      <line x1="120" y1="170" x2="150" y2="170" stroke="#94a3b8" stroke-width="2" marker-end="url(#a)"/>
+      <line x1="270" y1="170" x2="300" y2="170" stroke="#94a3b8" stroke-width="2" marker-end="url(#a)"/>
+      <line x1="460" y1="170" x2="490" y2="170" stroke="#94a3b8" stroke-width="2" marker-end="url(#a)"/>
+    </g>
+    <defs><marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#94a3b8"/></marker></defs>
+  </svg>
+  <div class="legend">The platform inserts ThinkAiSolutions as the branded reseller layer between the BSP and the end clients.</div>
+  </div>
+
+  <h3>How ThinkAiSolutions makes money</h3>
+  <ul class="tight">
+    <li>Meta charges <b>per message</b>, by category: <span class="pill blue">marketing</span> <span class="pill blue">utility</span> <span class="pill blue">authentication</span> are paid; <span class="pill green">service</span> replies inside a 24-hour window are free.</li>
+    <li>ThinkAiSolutions pays the BSP a wholesale <b>cost</b> rate, and sets a higher <b>charge</b> rate for each client. The difference is the <b>margin</b>.</li>
+    <li>Clients pre-pay into a <b>wallet</b>. Every billable message is debited from that wallet automatically. When the wallet is empty, sending is blocked.</li>
+    <li>All money is stored as <b>integer paise</b> (never floating-point rupees) to avoid rounding errors.</li>
+  </ul>
+  <div class="note"><b>Multi-tenant from day one.</b> Each client is a "tenant". Every piece of data — contacts, messages, wallet, pricing — is scoped to a <code>tenantId</code>, and one tenant can never see another's data.</div>
+</section>
+
+<!-- ============ 2 · ARCHITECTURE ============ -->
+<section class="page">
+  <h2>2 · The big picture — system architecture</h2>
+  <p>The platform is a small number of cleanly separated pieces. The browser only ever talks to <b>our own API</b>; it never touches the BSP or payment secrets directly.</p>
+  <div class="diagram">
+  <svg viewBox="0 0 760 430" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,Arial" font-size="12">
+    <defs><marker id="b" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#64748b"/></marker></defs>
+    <!-- browser -->
+    <rect x="40" y="20" width="200" height="60" rx="10" fill="#eff6ff" stroke="#2563eb"/>
+    <text x="140" y="45" text-anchor="middle" font-weight="700" fill="#1e54a8">Browser (React SPA)</text>
+    <text x="140" y="64" text-anchor="middle" fill="#64748b" font-size="11">Firebase Hosting · Vite + Tailwind</text>
+    <!-- API -->
+    <rect x="40" y="150" width="240" height="70" rx="10" fill="#ecfdf5" stroke="#10b981" stroke-width="2"/>
+    <text x="160" y="178" text-anchor="middle" font-weight="700" fill="#0f766e">Express API (Cloud Run)</text>
+    <text x="160" y="197" text-anchor="middle" fill="#64748b" font-size="11">asia-south1 · /api/** · Node 20</text>
+    <text x="160" y="211" text-anchor="middle" fill="#94a3b8" font-size="10">auth · admin · inbox · wallet · webhooks</text>
+    <!-- firestore -->
+    <rect x="330" y="140" width="160" height="50" rx="10" fill="#fff7ed" stroke="#f59e0b"/>
+    <text x="410" y="162" text-anchor="middle" font-weight="700" fill="#b45309">Firestore</text>
+    <text x="410" y="178" text-anchor="middle" fill="#94a3b8" font-size="10">tenant-scoped data</text>
+    <!-- auth -->
+    <rect x="330" y="205" width="160" height="44" rx="10" fill="#fff7ed" stroke="#f59e0b"/>
+    <text x="410" y="232" text-anchor="middle" font-weight="700" fill="#b45309">Firebase Auth</text>
+    <!-- secrets -->
+    <rect x="40" y="260" width="240" height="46" rx="10" fill="#f1f5f9" stroke="#64748b"/>
+    <text x="160" y="282" text-anchor="middle" font-weight="700" fill="#334155">Secret Store (AES-256-GCM)</text>
+    <text x="160" y="297" text-anchor="middle" fill="#94a3b8" font-size="10">BSP apikeys · webhook secrets</text>
+    <!-- BSP -->
+    <rect x="540" y="40" width="180" height="60" rx="10" fill="#eff6ff" stroke="#2563eb"/>
+    <text x="630" y="65" text-anchor="middle" font-weight="700" fill="#1e54a8">Pinnacle / AiSensy</text>
+    <text x="630" y="83" text-anchor="middle" fill="#64748b" font-size="11">→ Meta WhatsApp</text>
+    <!-- Razorpay -->
+    <rect x="540" y="150" width="180" height="56" rx="10" fill="#eff6ff" stroke="#2563eb"/>
+    <text x="630" y="174" text-anchor="middle" font-weight="700" fill="#1e54a8">Razorpay</text>
+    <text x="630" y="191" text-anchor="middle" fill="#64748b" font-size="11">wallet recharge</text>
+    <!-- arrows -->
+    <line x1="140" y1="80" x2="140" y2="150" stroke="#64748b" stroke-width="2" marker-end="url(#b)"/>
+    <text x="150" y="118" fill="#64748b" font-size="10">HTTPS + ID token</text>
+    <line x1="280" y1="175" x2="330" y2="165" stroke="#64748b" stroke-width="2" marker-end="url(#b)"/>
+    <line x1="280" y1="200" x2="330" y2="222" stroke="#64748b" stroke-width="2" marker-end="url(#b)"/>
+    <line x1="160" y1="220" x2="160" y2="260" stroke="#64748b" stroke-width="2" marker-end="url(#b)"/>
+    <line x1="280" y1="165" x2="540" y2="80" stroke="#64748b" stroke-width="2" marker-end="url(#b)"/>
+    <text x="360" y="105" fill="#64748b" font-size="10">send / templates</text>
+    <line x1="540" y1="95" x2="285" y2="160" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#b)"/>
+    <text x="350" y="138" fill="#94a3b8" font-size="10">inbound + status webhooks</text>
+    <line x1="280" y1="185" x2="540" y2="178" stroke="#64748b" stroke-width="2" marker-end="url(#b)"/>
+    <line x1="540" y1="200" x2="285" y2="205" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#b)"/>
+    <text x="350" y="218" fill="#94a3b8" font-size="10">payment.captured webhook</text>
+    <!-- note -->
+    <text x="40" y="350" fill="#0f172a" font-weight="600">Key rule:</text>
+    <text x="105" y="350" fill="#334155">the browser only talks to the Express API. Apikeys, the Razorpay secret, and Firebase</text>
+    <text x="40" y="368" fill="#334155">admin credentials never leave the server. Solid lines = outbound calls; dashed = inbound webhooks.</text>
+  </svg>
+  </div>
+
+  <h3>The three code packages (one repository)</h3>
+  <table>
+    <tr><th>Package</th><th>What it is</th><th>Runs / deploys to</th></tr>
+    <tr><td><code>client</code></td><td>React + Vite + Tailwind single-page app — everything the user sees.</td><td>Firebase Hosting (static)</td></tr>
+    <tr><td><code>server</code></td><td>Node + Express (TypeScript) — the API, billing, BSP calls, webhooks.</td><td>Google Cloud Run (asia-south1)</td></tr>
+    <tr><td><code>shared</code></td><td>Types, constants, and helpers (GST math, GSTIN validation) used by both sides so they never drift.</td><td>Compiled into both</td></tr>
+  </table>
+  <div class="good small"><b>BSP isolation:</b> every call to a messaging provider goes through one interface (<code>BspProvider</code>) with one file per provider (<code>pinnacle.ts</code>, <code>aisensy.ts</code>). Swapping or adding a provider means writing one new file — nothing else changes.</div>
+</section>
+
+<!-- ============ 3 · ROLES ============ -->
+<section class="page">
+  <h2>3 · Who uses it — roles</h2>
+  <p>There are exactly three roles. A user's role and tenant are stored as <b>custom claims</b> on their login token, so the app knows who they are the instant they sign in.</p>
+  <table>
+    <tr><th>Role</th><th>Who</th><th>tenantId</th><th>Can do</th></tr>
+    <tr><td><span class="pill rose">reseller_admin</span></td><td><b>You</b> (ThinkAiSolutions)</td><td><code>null</code> (sees all)</td><td>Create &amp; manage every tenant, set each tenant's pricing, view global usage / revenue / margin.</td></tr>
+    <tr><td><span class="pill blue">tenant_admin</span></td><td>Your client (e.g. a clinic owner)</td><td>their tenant</td><td>Manage their WABA, templates, inbox, <b>wallet &amp; recharge</b>, and their agents — scoped to their tenant only.</td></tr>
+    <tr><td><span class="pill green">agent</span></td><td>Client's staff</td><td>their tenant</td><td>Handle the inbox: read conversations, reply, send templates. <b>No wallet access.</b></td></tr>
+  </table>
+
+  <h3>What each role lands on</h3>
+  <div class="grid2">
+    <div class="card">
+      <h4>Reseller admin → <code>/admin</code></h4>
+      <ul class="tight small">
+        <li>Tenants list</li>
+        <li>New tenant (4-step wizard)</li>
+        <li>Tenant detail</li>
+        <li>Pricing editor</li>
+        <li>Global usage &amp; revenue</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Tenant admin / agent → <code>/dashboard</code></h4>
+      <ul class="tight small">
+        <li>Dashboard (metrics + charts)</li>
+        <li>Inbox</li>
+        <li>Templates</li>
+        <li>Campaigns / Reports <span class="pill gray">coming soon</span></li>
+        <li>Wallet <span class="muted">(admin only)</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="note small">Routes are guarded: a signed-in user who tries to open a screen their role can't access is quietly redirected to their own home page. Not-signed-in users go to the login screen and are returned to where they were after signing in.</div>
+</section>
+
+<!-- ============ 4 · LOGIN ============ -->
+<section class="page">
+  <h2>4 · Logging in</h2>
+  <p>Everyone starts at the same login screen. There is no public sign-up — accounts are created for clients by the reseller admin (see §5).</p>
+  <figure>
+    <img src="img/login.png" alt="Login screen"/>
+    <figcaption><span class="shot-tag tag-live">Live</span> The real login page at <code>thinkaisolutions-c5c00.web.app/login</code> — email + password, "Authorized users only."</figcaption>
+  </figure>
+  <h3>What happens when you click "Sign in"</h3>
+  <ol class="steps">
+    <li><b>Firebase Auth checks the password.</b> The browser sends email + password to Firebase Authentication and gets back a signed <b>ID token</b>.</li>
+    <li><b>Role &amp; tenant are read from the token.</b> The token carries custom claims (<code>role</code>, <code>tenantId</code>) that the server set when the account was created. No extra database lookup is needed.</li>
+    <li><b>You're routed to your home.</b> Reseller admins go to <code>/admin</code>; tenant admins and agents go to <code>/dashboard</code>.</li>
+    <li><b>Every later API call carries the token.</b> The app attaches <code>Authorization: Bearer &lt;token&gt;</code> to each request; the server verifies it and enforces the role/tenant on every endpoint.</li>
+  </ol>
+  <div class="good small"><b>Why this is safe:</b> the token is cryptographically signed by Firebase and verified on the server with the Firebase Admin SDK on every request, including a check that the token hasn't been revoked.</div>
+</section>
+
+<!-- ============ 5 · ADMIN WALKTHROUGH ============ -->
+<section class="page">
+  <h2>5 · Reseller admin — onboarding a client</h2>
+  <p>This is the most important admin journey: turning a new client into a live tenant who can send WhatsApp messages. It's a <b>4-step wizard</b> at <code>/admin/tenants/new</code>. Crucially, the tenant is <b>created at step 1</b> and the same <code>tenantId</code> is carried through steps 2–4 — so the admin never types an ID by hand.</p>
+
+  <div class="mock">
+    <div class="bar"><span class="dot">T</span><b style="font-size:13px">New tenant</b>
+      <span class="nav" style="margin-left:auto">
+        <span>① Tenant &amp; billing</span><span>② Tenant admin</span><span class="on">③ WhatsApp number</span><span>④ Pricing</span>
+      </span>
+    </div>
+    <div class="body"><div class="card small">The horizontal stepper at the top of every step. Completed steps turn green; the current step is highlighted.</div></div>
+  </div>
+
+  <h3>Step 1 — Tenant &amp; billing</h3>
+  <p>Enter the client's name, optional plan, and billing details (legal name, <b>GSTIN</b>, state code, address). The GSTIN is validated before submit, and if you leave the state code blank it's derived automatically from the GSTIN — this drives the correct GST split on invoices later.</p>
+  <div class="kbd">POST /api/admin/tenants   →   returns { tenantId }   (also seeds the wallet at 0 paise)</div>
+
+  <h3>Step 2 — Tenant admin login</h3>
+  <p>Create the client's own login (name, email, temporary password). This user becomes a <span class="pill blue">tenant_admin</span> for the tenant created in step 1.</p>
+  <div class="kbd">POST /api/admin/users   →   creates Firebase Auth user + sets role/tenant claims</div>
+
+  <h3>Step 3 — Connect the WhatsApp number</h3>
+  <p>This is the screen you asked about earlier. Pick the provider, enter the WhatsApp number and Meta identifiers, and paste the BSP apikey.</p>
+  <figure>
+    <img src="img/waba-connect.png" alt="WABA connect form"/>
+    <figcaption><span class="shot-tag tag-live">Live</span> Step 3 — connecting a WABA via Pinnacle. The <b>apikey is write-only</b>: pasted once, encrypted server-side, never shown again.</figcaption>
+  </figure>
+  <table>
+    <tr><th>Field</th><th>Purpose</th></tr>
+    <tr><td>Provider</td><td>Which BSP this number runs on (Pinnacle or AiSensy). Switching changes the fields below.</td></tr>
+    <tr><td>Display name</td><td>Friendly label for the number.</td></tr>
+    <tr><td>Phone number (E.164)</td><td>The WhatsApp number — must include country code, e.g. <code>+919391714623</code>.</td></tr>
+    <tr><td>WABA id (Meta)</td><td>Used to <b>fetch templates</b> from Meta.</td></tr>
+    <tr><td>phone_number_id (Meta)</td><td>Used for <b>sending</b> and to route inbound <b>webhooks</b> back to this tenant.</td></tr>
+    <tr><td>BSP apikey <span class="pill gray">write-only</span></td><td>The provider secret. Encrypted with AES-256-GCM and stored only as a reference; to change it you submit a new key.</td></tr>
+  </table>
+  <div class="kbd">POST /api/admin/wabas   →   stores WABA + encrypts apikey + registers the inbound webhook with the BSP</div>
+  <div class="warn small"><b>Real-world caution (from project notes):</b> registering the webhook re-points inbound messages for that number to this platform. For a number with a live production bot, only do this with explicit intent to migrate, or inbound will be redirected away from the existing bot.</div>
+
+  <h3>Step 4 — Pricing</h3>
+  <p>Set the per-category <b>charge</b> rate (what the client pays) and optionally record your <b>cost</b> rate (what the BSP charges you). The form previews the <b>margin</b> live, colour-coded green/red.</p>
+  <div class="kbd">PUT /api/admin/pricing/:tenantId   →   on success, lands on the tenant's detail page</div>
+  <div class="good small">After step 4 the client is fully live: they can log in, and once their wallet has a balance, send messages.</div>
+</section>
+
+<!-- ============ 5b · OTHER ADMIN SCREENS ============ -->
+<section class="page">
+  <h2>5 (cont.) · The rest of the admin console</h2>
+
+  <h3>Tenants list — <code>/admin</code></h3>
+  <div class="mock">
+    <div class="bar"><span class="dot">T</span><b style="font-size:13px">Tenants</b><span style="margin-left:auto" class="btn blue">+ New tenant</span></div>
+    <div class="body">
+      <div class="card" style="padding:0">
+        <table style="margin:0">
+          <tr><th>Name</th><th>Plan</th><th>Status</th><th>GSTIN</th></tr>
+          <tr><td>Arjun Clinics</td><td>starter</td><td><span class="pill green">active</span></td><td>36ABCDE1234F1Z5</td></tr>
+          <tr><td>Mithra Medicare</td><td>—</td><td><span class="pill green">active</span></td><td>36MITHR…</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <p class="small muted"><span class="shot-tag tag-ill">Illustration</span> A read-only table of every tenant, with a link to global usage and the "New tenant" button.</p>
+
+  <h3>Pricing editor — <code>/admin/pricing/:tenantId</code></h3>
+  <div class="mock">
+    <div class="bar"><span class="dot">T</span><b style="font-size:13px">Pricing — Arjun Clinics</b></div>
+    <div class="body"><div class="card" style="padding:0">
+      <table style="margin:0">
+        <tr><th>Category</th><th>Charge (₹/msg)</th><th>Our cost (₹/msg)</th><th>Margin</th></tr>
+        <tr><td>Marketing</td><td>0.99</td><td>0.78</td><td><span class="pill green">+0.21</span></td></tr>
+        <tr><td>Utility</td><td>0.35</td><td>0.30</td><td><span class="pill green">+0.05</span></td></tr>
+        <tr><td>Authentication</td><td>0.40</td><td>0.42</td><td><span class="pill rose">−0.02</span></td></tr>
+      </table>
+    </div></div>
+  </div>
+  <p class="small muted"><span class="shot-tag tag-ill">Illustration</span> Charge − cost = margin, computed live. Cost rates are private to you (clients never see them).</p>
+
+  <h3>Global usage &amp; revenue — <code>/admin/usage</code></h3>
+  <div class="statrow">
+    <div class="stat"><div class="l">Messages</div><div class="v">12,480</div></div>
+    <div class="stat"><div class="l">Revenue</div><div class="v">₹9,640</div></div>
+    <div class="stat"><div class="l">Cost</div><div class="v">₹7,410</div></div>
+    <div class="stat"><div class="l">Margin</div><div class="v" style="color:#047857">₹2,230</div></div>
+  </div>
+  <p class="small muted"><span class="shot-tag tag-ill">Illustration</span> Headline totals plus a per-tenant breakdown; click a tenant to drill into its detail page.</p>
+</section>
+
+<!-- ============ 6 · TENANT WALKTHROUGH ============ -->
+<section class="page">
+  <h2>6 · Tenant admin &amp; agent — daily use</h2>
+
+  <h3>Dashboard — <code>/dashboard</code></h3>
+  <div class="mock">
+    <div class="bar"><span class="dot">T</span><b style="font-size:13px">ThinkAiSolutions</b>
+      <span class="nav"><span class="on">Dashboard</span><span>Inbox</span><span>Templates</span><span>Campaigns</span><span>Reports</span><span>Wallet</span></span>
+      <span style="margin-left:auto" class="pill green">₹ 480.00</span>
+    </div>
+    <div class="body">
+      <div class="statrow" style="margin-bottom:10px">
+        <div class="stat"><div class="l">Submitted (today)</div><div class="v">142</div></div>
+        <div class="stat"><div class="l">Sent</div><div class="v">138</div></div>
+        <div class="stat"><div class="l">Delivered</div><div class="v">131</div></div>
+        <div class="stat"><div class="l">Failed</div><div class="v" style="color:#be123c">4</div></div>
+      </div>
+      <div class="card small">📈 Message volume (last 30 days) &nbsp;·&nbsp; 📊 Today by status</div>
+    </div>
+  </div>
+  <p class="small muted"><span class="shot-tag tag-ill">Illustration</span> Eight metric cards (today + last 30 days) and two charts. The header shows the live wallet balance and a logout menu.</p>
+
+  <h3>Templates — <code>/templates</code></h3>
+  <p>WhatsApp requires Meta-approved templates to start conversations. This screen lists the tenant's templates with status badges and a <b>"Sync from Pinnacle"</b> button that pulls the latest approved templates from the BSP.</p>
+  <table>
+    <tr><th>Template</th><th>Category</th><th>Lang</th><th>Status</th></tr>
+    <tr><td>appointment_reminder</td><td>utility</td><td>en</td><td><span class="pill green">approved</span></td></tr>
+    <tr><td>lab_report_ready</td><td>utility</td><td>en</td><td><span class="pill green">approved</span></td></tr>
+    <tr><td>festival_offer</td><td>marketing</td><td>en</td><td><span class="pill amber">pending</span></td></tr>
+    <tr><td>otp_login</td><td>authentication</td><td>en</td><td><span class="pill rose">rejected</span></td></tr>
+  </table>
+  <p class="small muted"><span class="shot-tag tag-ill">Illustration</span> Only <b>approved</b> templates can actually be sent.</p>
+
+  <h3>Inbox — <code>/inbox</code></h3>
+  <div class="mock">
+    <div class="bar"><span class="dot">T</span><b style="font-size:13px">Inbox</b><span style="margin-left:auto" class="btn">+ New message</span></div>
+    <div class="body" style="display:grid;grid-template-columns:200px 1fr;gap:10px">
+      <div class="card" style="padding:0">
+        <div style="padding:8px 10px;border-bottom:1px solid #e2e8f0"><b class="small">+91 90000 11111</b><div class="small muted">See you then! · 2m</div></div>
+        <div style="padding:8px 10px;background:#eff6ff"><b class="small">+91 98888 22222</b><div class="small muted">Thank you · 1h</div></div>
+      </div>
+      <div class="card">
+        <div class="small" style="text-align:center;color:#047857;border:1px dashed #10b981;border-radius:6px;padding:4px;margin-bottom:8px">Service window open · 22h left</div>
+        <div class="small" style="text-align:right"><span style="background:#dcfce7;padding:6px 10px;border-radius:10px;display:inline-block">Your appointment is confirmed ✅</span></div>
+        <div class="small" style="text-align:left;margin-top:6px"><span style="background:#f1f5f9;padding:6px 10px;border-radius:10px;display:inline-block">Thank you!</span></div>
+        <div style="margin-top:10px;border-top:1px solid #e2e8f0;padding-top:8px" class="small muted">Type a reply… <span class="btn" style="float:right">Send</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="small">Two panes: conversation list (left, auto-refreshing) and the open thread (right). The banner shows the <b>24-hour service window</b> status. Inside the window, agents can reply with free text (free). Outside it, the only way to message is an approved template (paid). The <b>+ New message</b> button opens a modal to send a template to any number — choose the template, fill its variables, send.</p>
+</section>
+
+<!-- ============ 7 · WALLET ============ -->
+<section class="page">
+  <h2>7 · The wallet — recharge &amp; billing</h2>
+  <p>Each tenant has one prepaid wallet (<span class="pill blue">tenant_admin</span> only — agents can't see it). The balance funds every billable message.</p>
+
+  <div class="grid2">
+    <div class="card">
+      <h4>Balance</h4>
+      <div style="font-size:30px;font-weight:700;margin:6px 0">₹ 480.00</div>
+      <span class="btn">Recharge</span> <span class="btn blue" style="background:#fff;color:#2563eb;border:1px solid #2563eb">Refresh</span>
+    </div>
+    <div class="card">
+      <h4>Recharge preview</h4>
+      <table style="margin:0"><tr><td>Credit</td><td style="text-align:right">₹1,000.00</td></tr>
+      <tr><td>GST (18%)</td><td style="text-align:right">₹180.00</td></tr>
+      <tr><td><b>You pay</b></td><td style="text-align:right"><b>₹1,180.00</b></td></tr></table>
+    </div>
+  </div>
+  <p class="small muted"><span class="shot-tag tag-ill">Illustration</span> The balance card and the recharge modal's GST preview.</p>
+
+  <div class="note">
+    <b>The GST rule (important):</b> 18% GST is charged <b>once, at recharge, on top</b> of the credit. So if a client wants ₹1,000 of sending power, they pay ₹1,180 and the wallet is credited ₹1,000. Per-message debits afterwards are the <b>bare</b> rate with no further GST — this avoids charging GST twice.
+  </div>
+
+  <h3>How recharge actually works</h3>
+  <ol class="steps">
+    <li><b>Client enters an amount</b> (or taps a quick button: 500 / 1000 / 2500 / 5000). The modal previews credit + GST + total.</li>
+    <li><b>Server creates a Razorpay order</b> for the total (credit + GST) and saves a <code>walletOrder</code> record with the exact amounts. <span class="muted">POST /api/wallet/recharge/order</span></li>
+    <li><b>Razorpay Checkout opens</b> in the browser; the client pays by card / UPI / netbanking.</li>
+    <li><b>The browser does NOT credit the wallet.</b> It just shows "Payment received — balance will update shortly" and starts polling.</li>
+    <li><b>Razorpay calls our webhook</b> (<code>payment.captured</code>). The server <b>verifies the signature</b>, looks up the saved order (amounts come from <i>our</i> record, never the webhook), <b>credits the wallet</b>, writes a transaction, and generates a <b>GST invoice</b> — all idempotently (a repeated webhook can't double-credit).</li>
+    <li><b>The balance updates</b> and the transaction history shows the recharge.</li>
+  </ol>
+  <div class="good small"><b>Why credit only on the verified webhook?</b> A browser can be tampered with; the signed server-to-server webhook is the only trustworthy confirmation that money actually arrived.</div>
+</section>
+
+<!-- ============ 8 · SEND + BILL FLOW ============ -->
+<section class="page">
+  <h2>8 · How a message is sent &amp; billed</h2>
+  <p>This is the heart of the platform. When a tenant sends a template, the order of operations is deliberate: <b>debit first, send second, refund if the send fails</b> — so a client is never charged for a message that didn't go out, and can't send for free.</p>
+  <div class="diagram">
+  <svg viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,Arial" font-size="11.5">
+    <defs><marker id="c" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#475569"/></marker></defs>
+    <!-- lanes -->
+    <text x="70" y="20" text-anchor="middle" font-weight="700" fill="#1e54a8">Client UI</text>
+    <text x="270" y="20" text-anchor="middle" font-weight="700" fill="#0f766e">Express API</text>
+    <text x="470" y="20" text-anchor="middle" font-weight="700" fill="#b45309">Firestore</text>
+    <text x="670" y="20" text-anchor="middle" font-weight="700" fill="#1e54a8">BSP → Meta</text>
+    <line x1="70" y1="28" x2="70" y2="340" stroke="#e2e8f0"/><line x1="270" y1="28" x2="270" y2="340" stroke="#e2e8f0"/>
+    <line x1="470" y1="28" x2="470" y2="340" stroke="#e2e8f0"/><line x1="670" y1="28" x2="670" y2="340" stroke="#e2e8f0"/>
+    <!-- steps -->
+    <line x1="70" y1="50" x2="270" y2="50" stroke="#475569" stroke-width="1.6" marker-end="url(#c)"/><text x="80" y="44" fill="#334155">send-template (phone, template, vars)</text>
+    <line x1="270" y1="80" x2="470" y2="80" stroke="#475569" stroke-width="1.6" marker-end="url(#c)"/><text x="280" y="74" fill="#334155">check template = approved</text>
+    <line x1="270" y1="110" x2="470" y2="110" stroke="#475569" stroke-width="1.6" marker-end="url(#c)"/><text x="280" y="104" fill="#334155">write message (status: queued)</text>
+    <rect x="280" y="124" width="180" height="40" rx="6" fill="#ecfdf5" stroke="#10b981"/><text x="370" y="142" text-anchor="middle" fill="#0f766e" font-weight="600">DEBIT wallet (atomic)</text><text x="370" y="156" text-anchor="middle" fill="#0f766e" font-size="10">block if balance &lt; charge → 402</text>
+    <line x1="270" y1="190" x2="670" y2="190" stroke="#475569" stroke-width="1.6" marker-end="url(#c)"/><text x="300" y="184" fill="#334155">sendTemplate via apikey</text>
+    <line x1="670" y1="220" x2="270" y2="220" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#c)"/><text x="300" y="214" fill="#64748b">returns bspMessageId (or error)</text>
+    <line x1="270" y1="250" x2="470" y2="250" stroke="#475569" stroke-width="1.6" marker-end="url(#c)"/><text x="280" y="244" fill="#334155">mark message = sent</text>
+    <line x1="270" y1="50" x2="70" y2="50" stroke="none"/>
+    <line x1="270" y1="280" x2="70" y2="280" stroke="#475569" stroke-width="1.6" marker-end="url(#c)"/><text x="80" y="274" fill="#334155">{ messageId, status }</text>
+    <!-- failure note -->
+    <rect x="280" y="300" width="420" height="34" rx="6" fill="#fff7ed" stroke="#f59e0b"/>
+    <text x="290" y="321" fill="#b45309" font-size="11">If the BSP send fails → mark failed &amp; <b>REFUND</b> the debit (client pays nothing).</text>
+  </svg>
+  </div>
+  <h3>The rules baked in</h3>
+  <ul class="tight small">
+    <li><b>Debit is atomic.</b> Reading the balance, checking it, decrementing it, and writing the ledger row all happen in one Firestore transaction — no double-spend, even under concurrent sends.</li>
+    <li><b>Insufficient balance blocks the send</b> with a clear <code>402 insufficient_funds</code>; nothing is sent.</li>
+    <li><b>Idempotent by messageId.</b> Each debit is keyed to its message, so a retried request can't charge twice.</li>
+    <li><b>Free-text replies are different:</b> allowed only while the 24-hour window is open, and they cost nothing (no debit).</li>
+    <li><b>Delivery status</b> (sent → delivered → read, or failed) arrives later via the BSP webhook and updates the message — only ever moving forward, never backward.</li>
+  </ul>
+</section>
+
+<!-- ============ 9 · INBOUND ============ -->
+<section class="page">
+  <h2>9 · How a reply comes back in</h2>
+  <p>When a customer replies on WhatsApp, the BSP sends it to our webhook. This both stores the message and <b>opens (or extends) the 24-hour service window</b>.</p>
+  <div class="diagram">
+  <svg viewBox="0 0 760 250" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,Arial" font-size="11.5">
+    <defs><marker id="d" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#475569"/></marker></defs>
+    <rect x="20" y="40" width="150" height="46" rx="8" fill="#eff6ff" stroke="#2563eb"/><text x="95" y="62" text-anchor="middle" font-weight="600" fill="#1e54a8">Customer's WhatsApp</text><text x="95" y="77" text-anchor="middle" fill="#64748b" font-size="10">replies "Yes"</text>
+    <rect x="210" y="40" width="120" height="46" rx="8" fill="#eff6ff" stroke="#2563eb"/><text x="270" y="67" text-anchor="middle" font-weight="600" fill="#1e54a8">BSP (Pinnacle)</text>
+    <rect x="370" y="34" width="160" height="58" rx="8" fill="#ecfdf5" stroke="#10b981"/><text x="450" y="56" text-anchor="middle" font-weight="700" fill="#0f766e">Our webhook</text><text x="450" y="72" text-anchor="middle" fill="#64748b" font-size="10">verify secret · route by</text><text x="450" y="84" text-anchor="middle" fill="#64748b" font-size="10">phone_number_id → tenant</text>
+    <rect x="580" y="34" width="160" height="58" rx="8" fill="#fff7ed" stroke="#f59e0b"/><text x="660" y="58" text-anchor="middle" font-weight="700" fill="#b45309">Firestore</text><text x="660" y="74" text-anchor="middle" fill="#64748b" font-size="10">contact · conversation · message</text>
+    <line x1="170" y1="63" x2="210" y2="63" stroke="#475569" stroke-width="1.6" marker-end="url(#d)"/>
+    <line x1="330" y1="63" x2="370" y2="63" stroke="#475569" stroke-width="1.6" marker-end="url(#d)"/>
+    <line x1="530" y1="63" x2="580" y2="63" stroke="#475569" stroke-width="1.6" marker-end="url(#d)"/>
+    <rect x="120" y="140" width="520" height="80" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+    <text x="380" y="162" text-anchor="middle" font-weight="700" fill="#0f172a">What the webhook writes (all idempotent by message id)</text>
+    <text x="380" y="184" text-anchor="middle" fill="#334155">① upsert the contact &nbsp;·&nbsp; ② open/extend conversation 24h window &nbsp;·&nbsp; ③ store inbound message</text>
+    <text x="380" y="204" text-anchor="middle" fill="#64748b" font-size="10.5">The same endpoint also receives delivery-status updates for messages you sent.</text>
+  </svg>
+  </div>
+  <h3>The 24-hour service window — why it matters</h3>
+  <ul class="tight small">
+    <li>The window <b>opens only on an inbound message</b> from the customer, and lasts 24 hours.</li>
+    <li><b>While open:</b> agents can reply with free text, for free.</li>
+    <li><b>While closed:</b> the only way to reach the customer is an approved <b>template</b>, which is billed.</li>
+    <li>This mirrors Meta's own rules and is why templates (and the wallet) matter for re-engaging customers.</li>
+  </ul>
+  <div class="good small"><b>Idempotency everywhere:</b> webhooks can be delivered more than once. Every write is keyed (by message id, payment id, or event id) so duplicates are harmless — no double messages, no double charges.</div>
+</section>
+
+<!-- ============ 10 · DATA MODEL ============ -->
+<section class="page">
+  <h2>10 · Data model — what is stored where</h2>
+  <p>Everything lives in Firestore. Almost all data is nested under <code>tenants/{tenantId}/…</code> so isolation is structural. The browser never reads Firestore directly — it goes through the API — but the security rules still lock everything down as defence in depth.</p>
+  <table>
+    <tr><th>Collection</th><th>Holds</th></tr>
+    <tr><td><code>tenants/{id}</code></td><td>Client profile: name, plan, status, billing (GSTIN, state, address).</td></tr>
+    <tr><td><code>users/{uid}</code></td><td>Each login's role, tenantId, name, email.</td></tr>
+    <tr><td><code>tenants/{id}/wabas/{wabaId}</code></td><td>Connected WhatsApp numbers + <b>references</b> to the encrypted apikey / webhook secret (never the secret itself).</td></tr>
+    <tr><td><code>tenants/{id}/contacts</code></td><td>Customers: phone, name, tags, opt-in status.</td></tr>
+    <tr><td><code>tenants/{id}/templates</code></td><td>Approved/pending templates synced from the BSP.</td></tr>
+    <tr><td><code>tenants/{id}/conversations</code></td><td>One thread per customer + the <code>windowExpiresAt</code> timestamp.</td></tr>
+    <tr><td><code>tenants/{id}/messages</code></td><td>Every message in/out: direction, status, category, <code>costPaise</code>, bspMessageId.</td></tr>
+    <tr><td><code>tenants/{id}/wallet/current</code></td><td>The single balance doc (<code>balancePaise</code>).</td></tr>
+    <tr><td><code>tenants/{id}/walletTransactions</code></td><td>The ledger: recharge / debit / refund, with balance-after.</td></tr>
+    <tr><td><code>tenants/{id}/walletOrders</code></td><td>Razorpay orders awaiting payment (server-only).</td></tr>
+    <tr><td><code>pricing/{id}</code> &amp; <code>pricingCost/{id}</code></td><td>Charge rates (client-visible) and your cost rates (admin-only) per tenant.</td></tr>
+    <tr><td><code>invoices/{paymentId}</code></td><td>GST invoices with the CGST/SGST or IGST split.</td></tr>
+    <tr><td><code>secrets/{ref}</code></td><td>AES-256-GCM encrypted apikeys &amp; webhook secrets. <b>Deny-all</b> to clients.</td></tr>
+    <tr><td><code>processedEvents/{key}</code></td><td>Webhook dedup markers (idempotency).</td></tr>
+  </table>
+  <div class="note small"><b>Authorization is O(1):</b> the rules read <code>role</code> and <code>tenantId</code> straight off the signed token — no extra database lookups — so a tenant member can only ever read their own subtree, and reseller-only data (cost rates, secrets, orders) is never exposed to tenants.</div>
+</section>
+
+<!-- ============ 11 · DEPLOY + SECURITY ============ -->
+<section class="page">
+  <h2>11 · Deployment &amp; security</h2>
+  <h3>Where it runs</h3>
+  <table>
+    <tr><th>Piece</th><th>Hosted on</th><th>How it ships</th></tr>
+    <tr><td>Client (SPA)</td><td>Firebase Hosting</td><td>Vite build → <code>client/dist</code> → <code>firebase deploy</code></td></tr>
+    <tr><td>API server</td><td>Cloud Run (asia-south1), service <code>thinkai-server</code></td><td>Dockerfile → <code>gcloud run deploy --source .</code></td></tr>
+    <tr><td>Routing</td><td>Firebase Hosting rewrite</td><td><code>/api/**</code> → Cloud Run; everything else → the SPA</td></tr>
+    <tr><td>Data / Auth</td><td>Firebase (Firestore + Auth)</td><td>Rules &amp; indexes deployed from the repo</td></tr>
+  </table>
+
+  <h3>The security model in one view</h3>
+  <div class="two small">
+    <ul class="tight">
+      <li><b>Secrets stay server-side.</b> BSP apikeys, the Razorpay secret, the encryption key, and Firebase admin credentials live only on the server — never in the browser bundle, never in a Firestore document in plaintext.</li>
+      <li><b>The browser bundle is public by design.</b> Only safe values ship to it (the Firebase web config and the Razorpay <i>public</i> key id), and access is gated by Auth + rules.</li>
+      <li><b>Webhooks are verified before trust.</b> Razorpay by HMAC-SHA256 signature; the BSP by a constant-time secret-header compare. Unsigned/forged calls are rejected.</li>
+      <li><b>Money is paise, and atomic.</b> Integer paise throughout; all balance changes run in Firestore transactions; all credits/debits are idempotent so retries are safe.</li>
+      <li><b>Tenant isolation is enforced server-side.</b> A tenant's scope comes from their token, never from the request body — they can't smuggle another tenant's id.</li>
+      <li><b>Apikeys are encrypted at rest</b> (AES-256-GCM) and only decrypted in memory at the moment of a send.</li>
+    </ul>
+  </div>
+
+  <h3>Current status &amp; what's next</h3>
+  <div class="good small">The app is <b>live</b> — client on Firebase Hosting, server on Cloud Run (asia-south1). Login, tenant onboarding, WABA connect, template send, inbox, the 24-hour window, and wallet/Razorpay billing are all built (Phase 1 / MVP).</div>
+  <p class="small muted">Deliberately out of scope for now (later phases): a template builder &amp; approval flow, broadcast campaigns, a no-code chatbot, contact import/segments, Meta embedded signup, vertical packs (Clinics / Restaurants), AI chat/voice, and white-label branding.</p>
+</section>
+
+<!-- ============ 12 · GLOSSARY ============ -->
+<section class="page">
+  <h2>12 · Glossary</h2>
+  <table>
+    <tr><th>Term</th><th>Meaning</th></tr>
+    <tr><td><b>BSP</b></td><td>Business Solution Provider — a company (like Pinnacle) authorised to sell access to Meta's WhatsApp API.</td></tr>
+    <tr><td><b>Reseller</b></td><td>A layer that buys from a BSP and resells to end clients. ThinkAiSolutions aims to be this layer (replacing Twincles).</td></tr>
+    <tr><td><b>Tenant</b></td><td>One client business on the platform. All their data is isolated under one <code>tenantId</code>.</td></tr>
+    <tr><td><b>WABA</b></td><td>WhatsApp Business Account — the Meta object a phone number lives under.</td></tr>
+    <tr><td><b>Template</b></td><td>A pre-approved message format required to start (or re-open) a conversation. Billable.</td></tr>
+    <tr><td><b>Service window</b></td><td>The 24-hour period after a customer messages you, during which free-text replies are free.</td></tr>
+    <tr><td><b>Paise</b></td><td>1/100 of a rupee. All money is stored as whole paise to avoid float errors.</td></tr>
+    <tr><td><b>GST</b></td><td>Indian 18% tax, charged once at wallet recharge; split into CGST+SGST (same state) or IGST (different state).</td></tr>
+    <tr><td><b>Idempotent</b></td><td>An operation that's safe to repeat — running it twice has the same effect as once (used for webhooks &amp; billing).</td></tr>
+    <tr><td><b>Custom claims</b></td><td>Role &amp; tenant data baked into the login token so the app knows who you are without extra lookups.</td></tr>
+  </table>
+  <div class="note" style="margin-top:30px"><b>That's the whole system.</b> A client logs in → (admin onboarded them with a WABA, pricing, and a login) → they top up a wallet → send approved templates that are billed per message → customers reply within a 24-hour window where free-text is free → everything is stored per-tenant, with secrets encrypted and every webhook verified.</div>
+  <p class="muted small" style="margin-top:24px;text-align:center">ThinkAiSolutions — WhatsApp Business Platform · Phase 1 walkthrough</p>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,426 @@
+// ThinkAiSolutions — Postgres schema (Prisma). Replaces Firestore as the database.
+//
+// Mapping conventions (faithful to shared/src/types/firestore.ts):
+//   - Money  -> Int  (integer paise). MONEY RULE: never floats.
+//   - Time   -> BigInt (epoch milliseconds). Repos convert <-> JS number at the boundary.
+//   - Enums (string unions in shared/src/types/enums.ts) -> String (the app validates via zod).
+//   - Nested objects (billing, error, components, attributes, payload) -> Json.
+//   - tags -> String[] (Postgres text[]) so arrayUnion/arrayRemove map to array ops.
+//
+// Tenant subcollections become tables with a `tenantId` column + composite PK
+// `@@id([tenantId, id])`, since Firestore doc ids were deterministic per tenant.
+// Cross-tenant routing keys (phone_number_id, waba_id, razorpay_order_id) get @unique;
+// the two worker pollers get global composite indexes (replacing collectionGroup queries).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Top-level: tenants ---------------------------------------------------
+model Tenant {
+  id        String @id // tenantId
+  name      String
+  plan      String
+  status    String // TenantStatus: active | suspended
+  billing   Json // TenantBilling { legalName?, gstin?, stateCode?, address? }
+  createdAt BigInt
+
+  @@map("tenants")
+}
+
+// --- Top-level: users (profile mirror; Firebase Auth still owns identity) --
+model User {
+  id        String  @id // Firebase uid
+  role      String // Role: reseller_admin | tenant_admin | agent
+  tenantId  String? // null for reseller_admin
+  name      String
+  email     String
+  createdAt BigInt
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+// --- Tenant-scoped: WABAs (Meta phone_number_id binding + routing) --------
+model Waba {
+  tenantId         String
+  id               String // waba doc id
+  provider         String? // BspProviderName ('metaCloud')
+  phoneNumber      String
+  displayName      String
+  status           String // WabaStatus
+  bspApiKeyRef     String?
+  wabaId           String? @unique // Meta WABA id (cross-tenant routing key)
+  phoneNumberId    String? @unique // Meta phone_number_id (inbound-routing key)
+  providerRef      String? @unique // == phoneNumberId for metaCloud
+  webhookSecretRef String?
+  qualityRating    String?
+  messagingTier    String?
+  qualityUpdatedAt BigInt?
+  createdAt        BigInt
+  updatedAt        BigInt
+
+  @@id([tenantId, id])
+  @@map("wabas")
+}
+
+model WabaQualityHistory {
+  id       String  @id @default(cuid())
+  tenantId String
+  wabaId   String // the waba doc id (not the Meta waba id)
+  rating   String?
+  tier     String?
+  event    String?
+  source   String // 'webhook' | 'refresh'
+  ts       BigInt
+
+  @@index([tenantId, wabaId, ts])
+  @@map("waba_quality_history")
+}
+
+// --- Top-level: per-tenant pricing ----------------------------------------
+model Pricing {
+  tenantId       String @id
+  marketingPaise Int
+  utilityPaise   Int
+  authPaise      Int
+  updatedAt      BigInt
+
+  @@map("pricing")
+}
+
+model PricingCost {
+  tenantId       String @id
+  marketingPaise Int
+  utilityPaise   Int
+  authPaise      Int
+  updatedAt      BigInt
+
+  @@map("pricing_cost")
+}
+
+// --- Top-level: contact settings (one doc per tenant) ---------------------
+model ContactSettings {
+  tenantId   String @id
+  attributes Json // ContactAttributeDef[]
+  tags       Json // ContactTag[]
+  updatedAt  BigInt
+
+  @@map("contact_settings")
+}
+
+// --- Tenant-scoped: contacts ----------------------------------------------
+model Contact {
+  tenantId    String
+  id          String // contact doc id (deterministic from phone)
+  phone       String
+  name        String?
+  nameLower   String?
+  tags        String[] @default([])
+  optInStatus String // OptInStatus
+  attributes  Json? // Record<string,string>
+  source      String?
+  status      String?
+  channel     String?
+  createdAt   BigInt
+  updatedAt   BigInt
+
+  @@id([tenantId, id])
+  @@index([tenantId, optInStatus])
+  @@index([tenantId, source])
+  @@index([tenantId, status])
+  @@index([tenantId, phone])
+  @@index([tenantId, nameLower])
+  @@index([tags], type: Gin)
+  @@map("contacts")
+}
+
+// --- Tenant-scoped: templates ---------------------------------------------
+model Template {
+  tenantId        String
+  id              String // template doc id (= template name)
+  name            String
+  category        String // MessageCategory
+  language        String
+  body            String?
+  status          String // TemplateStatus
+  channel         String?
+  bspTemplateId   String?
+  components      Json?
+  variableCount   Int?
+  submittedAt     BigInt?
+  rejectionReason String?
+  updatedAt       BigInt
+
+  @@id([tenantId, id])
+  @@map("templates")
+}
+
+// --- Tenant-scoped: conversations -----------------------------------------
+model Conversation {
+  tenantId           String
+  id                 String // conversation doc id (deterministic from phone)
+  contactPhone       String
+  contactName        String?
+  lastMessageAt      BigInt
+  lastMessagePreview String?
+  windowExpiresAt    BigInt
+  unreadCount        Int     @default(0)
+  createdAt          BigInt
+
+  @@id([tenantId, id])
+  @@index([tenantId, lastMessageAt])
+  @@map("conversations")
+}
+
+// --- Tenant-scoped: messages ----------------------------------------------
+model Message {
+  tenantId            String
+  id                  String // message doc id (Meta wamid or generated)
+  conversationId      String
+  contactPhone        String
+  direction           String // MessageDirection: in | out
+  channel             String?
+  type                String // MessageType
+  body                String?
+  templateName        String?
+  campaignId          String?
+  campaignRecipientId String?
+  status              String // MessageStatus
+  category            String // MessageCategory
+  costPaise           Int     @default(0)
+  bspMessageId        String?
+  error               Json? // MessageError
+  ts                  BigInt
+
+  @@id([tenantId, id])
+  @@index([tenantId, conversationId, ts])
+  @@index([tenantId, bspMessageId])
+  @@map("messages")
+}
+
+// --- Tenant-scoped: media -------------------------------------------------
+model MediaAsset {
+  tenantId    String
+  id          String
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  metaMediaId String
+  handle      String?
+  uploadedBy  String
+  channel     String?
+  createdAt   BigInt
+
+  @@id([tenantId, id])
+  @@map("media")
+}
+
+// --- Tenant-scoped: campaigns ---------------------------------------------
+model Campaign {
+  tenantId              String
+  id                    String
+  title                 String
+  channel               String?
+  templateName          String
+  languageCode          String
+  status                String // CampaignStatus
+  totalRecipients       Int      @default(0)
+  submitted             Int      @default(0)
+  sent                  Int      @default(0)
+  delivered             Int      @default(0)
+  read                  Int?     @default(0)
+  failed                Int      @default(0)
+  variables             String[] @default([])
+  templateVariablesMode String?
+  segment               Json? // CampaignSegment
+  scheduledAt           BigInt?
+  startedAt             BigInt?
+  completedAt           BigInt?
+  createdAt             BigInt
+
+  // Worker poll (replaces collectionGroup('campaigns') where status+scheduledAt): global index.
+  @@id([tenantId, id])
+  @@index([status, scheduledAt])
+  @@map("campaigns")
+}
+
+model CampaignRecipient {
+  tenantId     String
+  campaignId   String
+  id           String // sanitized phone digits
+  phone        String
+  status       String // CampaignRecipientStatus
+  contactId    String?
+  name         String?
+  messageId    String?
+  bspMessageId String?
+  error        Json?
+  updatedAt    BigInt
+
+  @@id([tenantId, campaignId, id])
+  @@index([tenantId, campaignId, status])
+  @@map("campaign_recipients")
+}
+
+// --- Tenant-scoped: wallet (one row per tenant) ---------------------------
+model Wallet {
+  tenantId     String @id
+  balancePaise Int    @default(0)
+  updatedAt    BigInt
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  tenantId     String
+  id           String // deterministic: debit_/recharge_/refund_<key>
+  type         String // WalletTxnType
+  amountPaise  Int
+  gstPaise     Int     @default(0)
+  balanceAfter Int
+  ref          String
+  note         String?
+  ts           BigInt
+
+  @@id([tenantId, id])
+  @@index([tenantId, ts])
+  @@map("wallet_transactions")
+}
+
+model WalletOrder {
+  tenantId        String
+  id              String // order doc id
+  creditPaise     Int
+  gstPaise        Int
+  totalPaise      Int
+  razorpayOrderId String @unique // reverse-lookup key (Razorpay webhook)
+  status          String // WalletOrderStatus
+  createdAt       BigInt
+
+  @@id([tenantId, id])
+  @@map("wallet_orders")
+}
+
+// --- Top-level: invoices (keyed by razorpay payment id) -------------------
+model Invoice {
+  razorpayPaymentId  String  @id
+  invoiceNumber      String
+  tenantId           String
+  taxableAmountPaise Int
+  gstTotalPaise      Int
+  taxType            String // InvoiceTaxType
+  cgstPaise          Int?
+  sgstPaise          Int?
+  igstPaise          Int?
+  sellerGstin        String?
+  sellerStateCode    String?
+  buyerGstin         String?
+  buyerStateCode     String?
+  razorpayOrderId    String
+  createdAt          BigInt
+
+  @@index([tenantId])
+  @@map("invoices")
+}
+
+// --- Top-level: idempotency markers ---------------------------------------
+model ProcessedEvent {
+  id          String @id // the combined doc id, e.g. "razorpay_<paymentId>"
+  source      String // 'razorpay' | 'metaCloud'
+  key         String
+  processedAt BigInt
+
+  @@map("processed_events")
+}
+
+// --- Top-level: Developer Hub API keys (keyed by sha256 hash of raw key) ---
+model ApiKey {
+  id         String   @id // sha256 hex of the raw key
+  tenantId   String
+  name       String
+  scopes     String[] @default([]) // ApiScope[]
+  keyPrefix  String
+  createdBy  String
+  createdAt  BigInt
+  lastUsedAt BigInt?
+  revokedAt  BigInt?
+
+  @@index([tenantId])
+  @@map("api_keys")
+}
+
+// --- Top-level: per-tenant client webhook config --------------------------
+model WebhookConfig {
+  tenantId         String   @id
+  enabled          Boolean  @default(false)
+  callbackUrl      String
+  eventTypes       String[] @default([]) // WebhookEventType[]
+  signingSecretRef String?
+  secretLast4      String?
+  createdAt        BigInt
+  updatedAt        BigInt
+
+  @@map("webhook_configs")
+}
+
+// --- Tenant-scoped: client webhook delivery queue + log -------------------
+model WebhookDelivery {
+  tenantId       String
+  id             String // deterministic: <source>_<eventId>
+  eventType      String // WebhookEventType
+  eventId        String
+  payload        Json // WebhookEventEnvelope
+  callbackUrl    String
+  status         String // WebhookDeliveryStatus
+  attempts       Int     @default(0)
+  maxAttempts    Int
+  lastStatusCode Int?
+  lastError      String?
+  nextAttemptAt  BigInt
+  createdAt      BigInt
+  updatedAt      BigInt
+  deliveredAt    BigInt?
+
+  // Worker poll (replaces collectionGroup('webhookDeliveries') where status+nextAttemptAt).
+  @@id([tenantId, id])
+  @@index([status, nextAttemptAt])
+  @@map("webhook_deliveries")
+}
+
+// --- Top-level: encrypted secrets (AES-256-GCM; same crypto as before) ----
+model Secret {
+  ref        String  @id // "<namespace>:<id>"
+  namespace  String
+  secretId   String // the secret's logical id within the namespace
+  ciphertext String // base64
+  iv         String // base64
+  tag        String // base64
+  createdAt  BigInt
+  updatedAt  BigInt?
+
+  @@index([namespace])
+  @@map("secrets")
+}
+
+// --- Top-level: Meta App Review compliance records ------------------------
+model DataDeletionRequest {
+  code      String @id
+  payload   Json
+  createdAt BigInt
+
+  @@map("data_deletion_requests")
+}
+
+model Deauthorization {
+  id        String @id
+  payload   Json
+  createdAt BigInt
+
+  @@map("deauthorizations")
+}

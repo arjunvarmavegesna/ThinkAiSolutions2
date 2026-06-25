@@ -1,0 +1,20 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "useDefineForClassFields": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@thinkai/shared": ["../shared/src/index.ts"],
+      "@thinkai/shared/*": ["../shared/src/*"],
+      "@/*": ["./src/*"]
+    },
+    "types": ["vite/client"]
+  },
+  "include": ["src"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}

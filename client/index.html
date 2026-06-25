@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Apply the saved/system theme before paint to avoid a flash of the wrong theme -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('theme');
+          var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+          document.documentElement.classList.toggle('dark', dark);
+        } catch (e) {}
+      })();
+    </script>
+    <!-- Favicon + app icon use the official hex-node symbol (cropped from the master lockup).
+         ?v=2 busts browsers that cached the previous logo at the same path. -->
+    <link rel="icon" type="image/png" href="/logo.png?v=2" />
+    <link rel="apple-touch-icon" href="/logo.png?v=2" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Mobile browser chrome matches the dark navigation rail -->
+    <meta name="theme-color" content="#0A1228" />
+    <title>ThinkAiSolutions — AI-Powered WhatsApp Business Platform</title>
+    <meta
+      name="description"
+      content="ThinkAiSolutions is an AI-powered WhatsApp Business Solution Provider — automate, engage, and grow on WhatsApp at enterprise scale."
+    />
+    <!-- Open Graph / social -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ThinkAiSolutions" />
+    <meta property="og:title" content="ThinkAiSolutions — AI-Powered WhatsApp Business Platform" />
+    <meta
+      property="og:description"
+      content="Automate · Engage · Grow. Enterprise WhatsApp messaging infrastructure."
+    />
+    <meta property="og:image" content="/logo.png" />
+    <meta name="twitter:card" content="summary" />
+    <!-- Pre-React splash: the logo breathes from the very first paint, before the JS bundle
+         loads. Removed by main.tsx once React mounts. Theme-aware via the .dark class set above. -->
+    <style>
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f7f9fc;
+        transition: opacity 0.35s ease;
+      }
+      .dark #app-splash { background: #0a0e1a; }
+      #app-splash.is-hiding { opacity: 0; pointer-events: none; }
+      #app-splash .sp-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 96px;
+        height: 96px;
+      }
+      #app-splash .sp-glow {
+        position: absolute;
+        inset: -14px;
+        border-radius: 9999px;
+        opacity: 0;
+        background: radial-gradient(circle at center, rgba(90,96,242,0.55), rgba(138,80,248,0.28) 45%, transparent 70%);
+        filter: blur(16px);
+        animation: sp-glow-in 0.7s ease-out 1s both, sp-glow-idle 2.6s ease-in-out 1.75s infinite;
+      }
+      #app-splash .sp-stage { transform-origin: center; animation: sp-stage 1.4s cubic-bezier(0.22,1,0.36,1) both; }
+      #app-splash .sp-path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: sp-draw 0.65s ease-out 0.12s forwards; }
+      #app-splash .sp-line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: sp-draw 0.42s ease-out forwards; }
+      #app-splash .sp-line.l1 { animation-delay: 0.55s; }
+      #app-splash .sp-line.l2 { animation-delay: 0.72s; }
+      #app-splash .sp-line.l3 { animation-delay: 0.84s; }
+      #app-splash .sp-node { opacity: 0; transform: scale(0.3); transform-box: fill-box; transform-origin: center; animation: sp-node 0.42s cubic-bezier(0.22,1,0.36,1) forwards; }
+      #app-splash .sp-node.n0 { animation-delay: 0.85s; }
+      #app-splash .sp-node.n1 { animation-delay: 1s; }
+      #app-splash .sp-node.n2 { animation-delay: 1.12s; }
+      #app-splash .sp-node.n3 { animation-delay: 1.24s; }
+      @keyframes sp-stage { from { opacity: 0.3; transform: scale(0.6); } to { opacity: 1; transform: scale(1); } }
+      @keyframes sp-draw { to { stroke-dashoffset: 0; } }
+      @keyframes sp-node { 0% { opacity: 0; transform: scale(0.3); } 60% { opacity: 1; transform: scale(1.25); } 100% { opacity: 1; transform: scale(1); } }
+      @keyframes sp-glow-in { from { opacity: 0; transform: scale(0.7); } to { opacity: 0.5; transform: scale(1); } }
+      @keyframes sp-glow-idle { 0%, 100% { opacity: 0.45; transform: scale(1); } 50% { opacity: 0.24; transform: scale(0.92); } }
+      @media (prefers-reduced-motion: reduce) {
+        #app-splash .sp-stage, #app-splash .sp-path, #app-splash .sp-line, #app-splash .sp-node, #app-splash .sp-glow { animation: none !important; }
+        #app-splash .sp-stage { opacity: 1; transform: none; }
+        #app-splash .sp-path, #app-splash .sp-line { stroke-dashoffset: 0; }
+        #app-splash .sp-node { opacity: 1; transform: none; }
+        #app-splash .sp-glow { opacity: 0.35; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app-splash" role="status" aria-label="Loading ThinkAiSolutions">
+      <div class="sp-wrap">
+        <span class="sp-glow"></span>
+        <svg class="sp-stage" width="88" height="88" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="sp-grad" x1="14" y1="100" x2="106" y2="20" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#1A74E8" />
+              <stop offset="0.5" stop-color="#5A60F2" />
+              <stop offset="1" stop-color="#8A50F8" />
+            </linearGradient>
+          </defs>
+          <path class="sp-path" pathLength="1" d="M106 60 L83 99.8 L37 99.8 L14 60 L37 20.2 L83 20.2 Z" stroke="url(#sp-grad)" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" />
+          <path class="sp-line l1" pathLength="1" d="M45 47 L62 63" stroke="url(#sp-grad)" stroke-width="4" stroke-linecap="round" />
+          <path class="sp-line l2" pathLength="1" d="M62 63 L80 55" stroke="url(#sp-grad)" stroke-width="4" stroke-linecap="round" />
+          <path class="sp-line l3" pathLength="1" d="M62 63 L56 83" stroke="url(#sp-grad)" stroke-width="4" stroke-linecap="round" />
+          <circle class="sp-node n0" cx="62" cy="63" r="6.5" fill="url(#sp-grad)" />
+          <circle class="sp-node n1" cx="45" cy="47" r="5" fill="url(#sp-grad)" />
+          <circle class="sp-node n2" cx="80" cy="55" r="5" fill="url(#sp-grad)" />
+          <circle class="sp-node n3" cx="56" cy="83" r="5" fill="url(#sp-grad)" />
+        </svg>
+      </div>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

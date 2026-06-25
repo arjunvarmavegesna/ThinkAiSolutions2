@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Environment files — never commit secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# Firebase
+.firebase/
+firebase-debug.log
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup env files
+*.bak
+*.bak.*
+cloudrun.env.yaml

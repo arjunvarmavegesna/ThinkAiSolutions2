@@ -1,0 +1,228 @@
+rules_version = '2';
+
+// ThinkAiSolutions — Firestore security rules (Phase 1).
+//
+// AUTHORIZATION MODEL
+// - All authorization decisions are made from CUSTOM CLAIMS on the Firebase ID token
+//   (request.auth.token.role and request.auth.token.tenantId), NEVER via get()/exists()
+//   lookups. Claims are set server-side by setUserClaims() (firebase-admin) and are the
+//   single source of truth, so rules stay O(1) and avoid extra document reads.
+// - The Express API uses the firebase-admin SDK, which BYPASSES these rules entirely.
+//   Therefore EVERY privileged write (wallet, billing, messaging, pricing, secrets,
+//   provisioning, user role/tenant mutation) is performed only by the server. These
+//   rules exist to make sure a browser holding an end-user ID token can do nothing
+//   dangerous if it ever talked to Firestore directly.
+// - Default posture: deny everything, then open up only safe, tenant-scoped READS.
+//   The client is expected to read application data through the Express API, but we
+//   still scope direct reads defensively in case rules are ever relied upon.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- claim helpers ----
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function role() {
+      return isSignedIn() ? request.auth.token.role : null;
+    }
+    function callerTenantId() {
+      return isSignedIn() ? request.auth.token.tenantId : null;
+    }
+    function isResellerAdmin() {
+      return role() == 'reseller_admin';
+    }
+    // A tenant member (tenant_admin or agent) whose claim tenantId matches the
+    // tenant subtree being accessed.
+    function isTenantMember(tenantId) {
+      return isSignedIn()
+        && (role() == 'tenant_admin' || role() == 'agent')
+        && callerTenantId() == tenantId;
+    }
+    // Reseller admin can read across all tenants; tenant members only their own subtree.
+    function canReadTenant(tenantId) {
+      return isResellerAdmin() || isTenantMember(tenantId);
+    }
+
+    // ============================================================
+    // users/{uid}
+    // A user may read ONLY their own user doc. Reseller admin may read any user doc
+    // (admin console). role/tenantId are server-only (set via custom claims +
+    // firebase-admin), so ALL client writes are denied.
+    // ============================================================
+    match /users/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isResellerAdmin());
+      allow write: if false;
+    }
+
+    // ============================================================
+    // tenants/{tenantId} and all tenant-scoped subcollections.
+    // ============================================================
+    match /tenants/{tenantId} {
+      // Tenant profile/billing: readable by reseller admin or that tenant's members.
+      allow read: if canReadTenant(tenantId);
+      // Created/updated only by the server (firebase-admin).
+      allow write: if false;
+
+      // ---- conversations: readable by tenant members; writes are server-only ----
+      match /conversations/{conversationId} {
+        allow read: if canReadTenant(tenantId);
+        allow write: if false;
+      }
+
+      // ---- contacts: readable by tenant members; writes are server-only ----
+      match /contacts/{contactId} {
+        allow read: if canReadTenant(tenantId);
+        allow write: if false;
+      }
+
+      // ---- templates: readable by tenant members; synced/written server-only ----
+      match /templates/{templateId} {
+        allow read: if canReadTenant(tenantId);
+        allow write: if false;
+      }
+
+      // ---- messages: sensitive (billing/category/cost). Read scoped to tenant,
+      //      all writes server-only. ----
+      match /messages/{messageId} {
+        allow read: if canReadTenant(tenantId);
+        allow write: if false;
+      }
+
+      // ---- wallet: balance is money. Read scoped to tenant; writes server-only
+      //      (atomic Firestore transactions in walletService). ----
+      match /wallet/{walletDocId} {
+        allow read: if canReadTenant(tenantId);
+        allow write: if false;
+      }
+
+      // ---- walletTransactions: ledger. Read scoped to tenant; writes server-only. ----
+      match /walletTransactions/{txnId} {
+        allow read: if canReadTenant(tenantId);
+        allow write: if false;
+      }
+
+      // ---- walletOrders: binds Razorpay order -> tenant. Server-only; not exposed
+      //      to the client (balance truth comes from the verified webhook). ----
+      match /walletOrders/{orderId} {
+        allow read: if false;
+        allow write: if false;
+      }
+
+      // ---- wabas: contains BSP linkage + secret references. Never client-readable
+      //      or writable; provisioned server-side only. ----
+      match /wabas/{wabaId} {
+        allow read: if false;
+        allow write: if false;
+      }
+
+      // ---- webhookDeliveries: client-webhook delivery queue + log (Developer Hub 2.5).
+      //      Readable by tenant members (the delivery-log debugging UI); writes server-only
+      //      (the Meta webhook enqueue + the delivery worker). ----
+      match /webhookDeliveries/{deliveryId} {
+        allow read: if canReadTenant(tenantId);
+        allow write: if false;
+      }
+    }
+
+    // ============================================================
+    // contactSettings/{tenantId} — tenant custom attribute defs + tag palette.
+    // Reseller admin or that tenant's members may read; writes server-only (firebase-admin).
+    // ============================================================
+    match /contactSettings/{tenantId} {
+      allow read: if canReadTenant(tenantId);
+      allow write: if false;
+    }
+
+    // ============================================================
+    // pricing/{tenantId} — rates we CHARGE this tenant.
+    // Reseller admin or that tenant's members may read; writes server-only.
+    // ============================================================
+    match /pricing/{tenantId} {
+      allow read: if canReadTenant(tenantId);
+      allow write: if false;
+    }
+
+    // ============================================================
+    // webhookConfig/{tenantId} — a tenant's client-facing webhook config (Developer Hub 2.5).
+    // Reseller admin or that tenant's members may read; writes server-only. The signing secret
+    // is NOT here (it lives in the server-only secrets/ collection).
+    // ============================================================
+    match /webhookConfig/{tenantId} {
+      allow read: if canReadTenant(tenantId);
+      allow write: if false;
+    }
+
+    // ============================================================
+    // pricingCost/{tenantId} — our BSP cost rates (margin). Reseller-admin read only,
+    // NEVER tenant-readable. Writes server-only.
+    // ============================================================
+    match /pricingCost/{tenantId} {
+      allow read: if isResellerAdmin();
+      allow write: if false;
+    }
+
+    // ============================================================
+    // invoices/{invoiceId} — minimal GST records. Server-generated; not exposed to
+    // the client directly (served via API if needed). Server-only.
+    // ============================================================
+    match /invoices/{invoiceId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // ============================================================
+    // processedEvents/{key} — webhook idempotency markers. Server-only.
+    // ============================================================
+    match /processedEvents/{key} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // ============================================================
+    // secrets/{ref} — encrypted BSP apikeys / webhook secrets. NEVER client-readable
+    // or writable under any circumstances. Server (firebase-admin) only.
+    // ============================================================
+    match /secrets/{ref} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // ============================================================
+    // apiKeys/{hash} — Developer Hub API keys (doc id = SHA-256 of the raw key). Server-only;
+    // the console lists keys via the API, never directly. NEVER client-readable or writable.
+    // ============================================================
+    match /apiKeys/{hash} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // ============================================================
+    // dataDeletionRequests/{code} — Meta App Review "data deletion request" records.
+    // Contain a person's app-scoped Facebook user_id (privacy data). Written + read ONLY
+    // by the server (firebase-admin, via the data-deletion callback + status page). NEVER
+    // client-readable or writable.
+    // ============================================================
+    match /dataDeletionRequests/{code} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // ============================================================
+    // deauthorizations/{id} — Meta App Review "deauthorize" audit records. Contain a
+    // person's app-scoped Facebook user_id (privacy data). Server-only (firebase-admin).
+    // NEVER client-readable or writable.
+    // ============================================================
+    match /deauthorizations/{id} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // ============================================================
+    // Catch-all: deny anything not explicitly matched above.
+    // ============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

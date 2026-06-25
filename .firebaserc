@@ -1,0 +1,18 @@
+{
+  "projects": {
+    "default": "thinkaisolutions-c5c00"
+  },
+  "targets": {
+    "thinkaisolutions-c5c00": {
+      "hosting": {
+        "console": [
+          "thinkaisolutions-c5c00"
+        ],
+        "marketing": [
+          "thinkaisolutions-marketing"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

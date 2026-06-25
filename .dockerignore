@@ -1,0 +1,17 @@
+# Keep the build context small + never bake secrets/builds into the image.
+**/node_modules
+**/dist
+**/build
+.git
+.firebase
+**/.env
+.env
+*.log
+**/*.tsbuildinfo
+.vite
+# Cloud Run env file holds secrets — must never enter the image.
+**/cloudrun.env.yaml
+# Client source/output isn't part of the server image.
+client/src
+client/index.html
+client/public

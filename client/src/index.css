@@ -1,0 +1,221 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Geist+Mono:wght@400..600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Design tokens (light). Values are space-separated HSL channels so Tailwind can
+ * apply opacity via hsl(var(--token) / <alpha-value>).
+ */
+@layer base {
+  /**
+   * Light tokens. Brand identity = azure→violet (see BRAND.md). Brand Blue is the single
+   * primary/action color; Violet is the AI accent; green is reserved for SUCCESS status only
+   * (never branding).
+   */
+  :root {
+    --background: 210 40% 98%; /* #F7F9FC */
+    --foreground: 222 44% 11%; /* near #0B1220 */
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 44% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 44% 11%;
+
+    --primary: 214 81% 51%; /* Brand Blue #1A74E8 */
+    --primary-foreground: 0 0% 100%;
+    --primary-emphasis: 217 80% 42%; /* #1560C4 */
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 30% 22%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 18% 42%;
+
+    --accent: 214 100% 96%; /* soft brand-blue tint for selected rows */
+    --accent-foreground: 216 72% 32%;
+
+    --destructive: 4 86% 58%; /* #F04438 */
+    --destructive-foreground: 0 0% 100%;
+    --destructive-emphasis: 4 75% 44%;
+
+    --success: 152 78% 37%; /* status green #15A85C — NOT brand */
+    --success-foreground: 0 0% 100%;
+    --success-emphasis: 153 78% 27%;
+
+    --warning: 35 92% 50%; /* #F59E0B */
+    --warning-foreground: 0 0% 100%;
+    --warning-emphasis: 28 78% 35%;
+
+    --info: 213 94% 58%; /* #2E90FA */
+    --info-foreground: 0 0% 100%;
+    --info-emphasis: 215 78% 46%;
+
+    --violet: 261 92% 65%; /* Brand Violet / AI accent #8A50F8 */
+    --violet-foreground: 0 0% 100%;
+    --violet-emphasis: 258 78% 58%; /* #6D3BEB */
+
+    --border: 214 32% 91%; /* #E5E9F0 */
+    --input: 214 32% 91%;
+    --ring: 214 81% 51%; /* brand-blue focus */
+
+    /* Navigation rail — LIGHT in light mode (white surface, brand-blue active pill). */
+    --rail: 0 0% 100%;
+    --rail-foreground: 222 44% 11%;
+    --rail-muted: 215 16% 46%;
+    --rail-accent: 214 96% 93%;
+    --rail-border: 214 32% 91%;
+
+    /* Signature gradient waypoints (azure → indigo → violet). */
+    --brand-from: 214 81% 51%; /* #1A74E8 */
+    --brand-via: 238 85% 65%; /* #5A60F2 */
+    --brand-to: 261 92% 65%; /* #8A50F8 */
+
+    --radius: 1rem; /* 16px cards; controls derive -6/-10px */
+  }
+
+  /**
+   * Dark tokens — Linear/Vercel near-black with a blue undertone (render-ready; the app ships
+   * light-only until a theme toggle is wired). Brand colors brighten for contrast on dark.
+   */
+  .dark {
+    --background: 222 47% 7%; /* #0A0E1A */
+    --foreground: 210 40% 95%; /* #EAF0FA */
+
+    --card: 222 36% 11%; /* #111624 */
+    --card-foreground: 210 40% 95%;
+    --popover: 222 40% 9%; /* #0E1320 */
+    --popover-foreground: 210 40% 95%;
+
+    --primary: 213 85% 59%; /* #3B8BF0 */
+    --primary-foreground: 0 0% 100%;
+    --primary-emphasis: 213 86% 69%; /* #6AA8F5 */
+
+    --secondary: 222 30% 16%;
+    --secondary-foreground: 210 30% 86%;
+
+    --muted: 222 30% 16%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 222 45% 17%;
+    --accent-foreground: 210 40% 92%;
+
+    --destructive: 4 95% 66%; /* #FB6155 */
+    --destructive-foreground: 0 0% 100%;
+    --destructive-emphasis: 4 95% 76%;
+
+    --success: 152 56% 48%; /* #33C27A */
+    --success-foreground: 0 0% 100%;
+    --success-emphasis: 152 56% 62%;
+
+    --warning: 38 93% 60%; /* #F8B33B */
+    --warning-foreground: 222 47% 8%;
+    --warning-emphasis: 38 93% 70%;
+
+    --info: 213 90% 62%;
+    --info-foreground: 0 0% 100%;
+    --info-emphasis: 213 90% 72%;
+
+    --violet: 261 92% 74%; /* #A47CFB */
+    --violet-foreground: 222 47% 8%;
+    --violet-emphasis: 261 92% 82%;
+
+    --border: 222 28% 19%; /* #222A3D */
+    --input: 222 28% 19%;
+    --ring: 213 85% 59%;
+
+    /* Navigation rail — deep navy in dark mode. */
+    --rail: 222 47% 9%;
+    --rail-foreground: 210 40% 95%;
+    --rail-muted: 215 18% 62%;
+    --rail-accent: 222 40% 16%;
+    --rail-border: 222 28% 22%;
+
+    --brand-from: 213 85% 59%;
+    --brand-via: 238 80% 70%;
+    --brand-to: 261 90% 74%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: 'cv11', 'ss01';
+    font-variation-settings: 'opsz' 32;
+  }
+
+  /* Tabular figures for metrics & money. */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Quiet, modern scrollbars. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.25) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.22);
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.38);
+  }
+}
+
+/**
+ * Brand gradient helpers (azure → indigo → violet). Reserved for brand moments — the logo,
+ * login hero, marketing hero, at most ONE accent surface per screen. Not for buttons used
+ * more than once per view, body text, or bulk surfaces. See BRAND.md §1.
+ */
+.bg-brand-gradient {
+  background-image: linear-gradient(
+    135deg,
+    hsl(var(--brand-from)),
+    hsl(var(--brand-via)),
+    hsl(var(--brand-to))
+  );
+}
+.text-brand-gradient {
+  background-image: linear-gradient(
+    135deg,
+    hsl(var(--brand-from)),
+    hsl(var(--brand-via)),
+    hsl(var(--brand-to))
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.border-brand-gradient {
+  border-color: transparent;
+  background-image: linear-gradient(hsl(var(--card)), hsl(var(--card))),
+    linear-gradient(135deg, hsl(var(--brand-from)), hsl(var(--brand-via)), hsl(var(--brand-to)));
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
