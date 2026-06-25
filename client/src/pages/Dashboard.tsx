@@ -260,7 +260,7 @@ export function Dashboard(): JSX.Element {
       </div>
 
       {/* KPIs — context + click-through */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <KpiCard
           to="/reports"
           label="Messages sent"
@@ -284,15 +284,6 @@ export function Dashboard(): JSX.Element {
           value={cc.contactsTotal === null ? '—' : cc.contactsTotal === 0 ? 'None yet' : formatCount(cc.contactsTotal)}
           icon={Users}
           hint={(cc.contactsTotal ?? 0) > 0 ? 'Your audience' : 'Import a CSV'}
-        />
-        <KpiCard
-          to="/reports"
-          label="Failed (30d)"
-          loading={statsLoading}
-          value={formatCount(last30.failed)}
-          icon={AlertTriangle}
-          hint={last30.failed > 0 ? 'Review delivery issues' : 'No failures'}
-          tone={last30.failed > 0 ? 'danger' : undefined}
         />
       </div>
 
@@ -393,7 +384,6 @@ export function Dashboard(): JSX.Element {
                   />
                   <Line type="monotone" dataKey="sent" name="Sent" stroke="#64748B" strokeWidth={2} dot={false} />
                   <Line type="monotone" dataKey="delivered" name="Delivered" stroke="#16B364" strokeWidth={2.5} dot={false} />
-                  <Line type="monotone" dataKey="failed" name="Failed" stroke="#F04438" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -656,14 +646,6 @@ interface AttentionItem {
 /** Derive the attention queue strictly from real numbers — no invented events. */
 function buildAttention(today: Counts, last30: Counts, deliveryRate: number | null): AttentionItem[] {
   const items: AttentionItem[] = [];
-  if (last30.failed > 0) {
-    items.push({
-      title: `${formatCount(last30.failed)} failed deliveries`,
-      description: 'Review failures in the last 30 days',
-      to: '/reports',
-      tone: 'danger',
-    });
-  }
   if (deliveryRate !== null && deliveryRate < 95) {
     items.push({
       title: `Delivery rate at ${deliveryRate.toFixed(1)}%`,
