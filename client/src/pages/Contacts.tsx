@@ -7,7 +7,7 @@
  * to the current page (cleared on page/filter change) so bulk + export act on what you can see.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import Papa from 'papaparse';
 import {
   ChevronLeft,
@@ -94,9 +94,12 @@ export function Contacts(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  // Draft (inputs) vs applied (committed) filters.
-  const [draft, setDraft] = useState<Filters>(EMPTY_FILTERS);
-  const [applied, setApplied] = useState<Filters>(EMPTY_FILTERS);
+  // Draft (inputs) vs applied (committed) filters. Seed the search from a ?search= deep-link
+  // (e.g. when jumping here from the ⌘K command palette) so the list opens pre-filtered.
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get('search') ?? '';
+  const [draft, setDraft] = useState<Filters>({ ...EMPTY_FILTERS, search: initialSearch });
+  const [applied, setApplied] = useState<Filters>({ ...EMPTY_FILTERS, search: initialSearch });
 
   // Cursor pagination: history[pageIndex] is the cursor that produced the current page.
   const [history, setHistory] = useState<(string | undefined)[]>([undefined]);
