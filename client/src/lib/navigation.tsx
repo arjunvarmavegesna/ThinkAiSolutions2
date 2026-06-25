@@ -66,6 +66,7 @@ const TENANT_NAV: NavGroup[] = [
     items: [
       { label: 'Analytics', to: '/reports', icon: BarChart3 },
       { label: 'Developers', to: '/developer', icon: Code2, tenantAdminOnly: true },
+      { label: 'Billing', to: '/wallet', icon: Wallet, tenantAdminOnly: true },
     ],
   },
 ];
@@ -116,7 +117,7 @@ export function quickActionsForRole(role: Role | null): QuickAction[] {
     { label: 'Create template', to: '/templates', icon: MessageSquarePlus, keywords: 'message hsm' },
   ];
   if (role === 'tenant_admin') {
-    actions.push({ label: 'Open wallet & billing', to: '/wallet', icon: Wallet, keywords: 'recharge balance payment' });
+    actions.push({ label: 'Billing & subscription', to: '/wallet', icon: Wallet, keywords: 'recharge balance payment plan subscription renew' });
   }
   return actions;
 }

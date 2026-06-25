@@ -19,6 +19,7 @@ import type {
   OptInStatus,
   QualityRating,
   Role,
+  SubscriptionStatus,
   TemplateStatus,
   WabaStatus,
   WebhookEventType,
@@ -332,6 +333,36 @@ export interface CreateRechargeOrderResponse {
 export type WalletTransactionDTO = WithId<WalletTransaction>;
 export type ListWalletTransactionsResponse = Paginated<WalletTransactionDTO>;
 export type InvoiceDTO = WithId<Invoice>;
+
+// ---- Subscription (flat ₹2,500/month plan; replaced per-message wallet billing) ----
+/** Current subscription state + the fixed monthly price split, for the Billing screen. */
+export interface SubscriptionDTO {
+  status: SubscriptionStatus;
+  /** Epoch ms when the paid month ends. 0 = never subscribed. Sends allowed iff `active`. */
+  currentPeriodEnd: number;
+  /** Whether sends are currently allowed (currentPeriodEnd > now). */
+  active: boolean;
+  /** Monthly base price (paise) — ₹2,500. */
+  pricePaise: number;
+  /** 18% GST on the base (paise). */
+  gstPaise: number;
+  /** What the client pays per renewal = pricePaise + gstPaise (paise) — ₹2,950. */
+  totalPaise: number;
+}
+export type GetSubscriptionResponse = SubscriptionDTO;
+
+/** POST /api/subscription/order → Razorpay Checkout params for one monthly renewal. */
+export interface CreateSubscriptionOrderResponse {
+  orderId: string;
+  /** Total to pay via Razorpay = base + GST (paise). */
+  amountPaise: number;
+  currency: 'INR';
+  /** Public Razorpay key id for Checkout. */
+  keyId: string;
+  pricePaise: number;
+  gstPaise: number;
+}
+export type ListInvoicesResponse = Paginated<InvoiceDTO>;
 
 // ---- Developer Hub: client-facing webhooks (2.5) ----
 /**

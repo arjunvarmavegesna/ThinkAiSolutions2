@@ -9,6 +9,14 @@ export type Role = (typeof ROLES)[number];
 export const TENANT_STATUSES = ['active', 'suspended'] as const;
 export type TenantStatus = (typeof TENANT_STATUSES)[number];
 
+/**
+ * Flat-monthly-subscription gate (replaced per-message wallet billing). A tenant may send only
+ * while 'active' (i.e. within a paid month). 'inactive' = never subscribed or the paid period
+ * lapsed. The authoritative signal is `subscriptionCurrentPeriodEnd > now`; this string mirrors it.
+ */
+export const SUBSCRIPTION_STATUSES = ['active', 'inactive'] as const;
+export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
+
 export const WABA_STATUSES = ['pending', 'connected', 'disabled'] as const;
 export type WabaStatus = (typeof WABA_STATUSES)[number];
 

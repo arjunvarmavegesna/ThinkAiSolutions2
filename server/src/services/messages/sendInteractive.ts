@@ -16,6 +16,7 @@ import { msBig } from '../../db/serde';
 import { AppError } from '../../lib/AppError';
 import { logger } from '../../lib/logger';
 import { getBspProvider, resolveTenantBspContext } from '../bsp';
+import { assertActive } from '../subscription/subscriptionService';
 import { isWindowOpen, touchConversationForOutbound } from '../conversations/window';
 
 /** Best-effort human-readable preview of an interactive payload for the message/conversation list. */
@@ -43,6 +44,9 @@ export async function sendInteractiveMessage(
   if (!isWindowOpen(Number(conversation.windowExpiresAt))) {
     throw AppError.conflict('Service window closed', 'window_closed');
   }
+
+  // Subscription gate — a lapsed tenant cannot send anything (throws 402 'subscription_inactive').
+  await assertActive(tenantId);
 
   const toPhone = conversation.contactPhone;
 

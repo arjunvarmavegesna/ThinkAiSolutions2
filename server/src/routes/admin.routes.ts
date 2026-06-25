@@ -32,6 +32,7 @@ import {
 } from '../controllers/admin/onboardingController';
 import { getPricing, setPricing } from '../controllers/admin/pricingController';
 import { getUsage } from '../controllers/admin/usageController';
+import { applyMonthlyPayment, getSubscription } from '../services/subscription/subscriptionService';
 
 export const adminRouter = Router();
 
@@ -55,6 +56,25 @@ adminRouter.post('/wabas', asyncHandler(connectWaba));
 // ---- Pricing ----
 adminRouter.get('/pricing/:tenantId', asyncHandler(getPricing));
 adminRouter.put('/pricing/:tenantId', asyncHandler(setPricing));
+
+// ---- Subscription (flat ₹2,500/month plan) ----
+// View any tenant's subscription, and manually extend it by one month (for offline/bank
+// payments) without going through Razorpay. Reseller-admin only (router-level gate above).
+adminRouter.get(
+  '/tenants/:tenantId/subscription',
+  asyncHandler(async (req, res) => {
+    const { tenantId } = parseOrThrow(tenantIdParamSchema, req.params);
+    res.json(await getSubscription(tenantId));
+  }),
+);
+adminRouter.post(
+  '/tenants/:tenantId/subscription/extend',
+  asyncHandler(async (req, res) => {
+    const { tenantId } = parseOrThrow(tenantIdParamSchema, req.params);
+    await applyMonthlyPayment(tenantId);
+    res.json(await getSubscription(tenantId));
+  }),
+);
 
 // ---- Usage ----
 adminRouter.get('/usage', asyncHandler(getUsage));
