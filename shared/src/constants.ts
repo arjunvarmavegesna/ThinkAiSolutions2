@@ -14,6 +14,14 @@
 /** 18% expressed in basis points (1/100th of a percent). */
 export const GST_BPS = 1800;
 
+/**
+ * Flat monthly subscription price — the BASE (taxable) amount before GST, in integer paise.
+ * ₹2,500/month. The client pays this + 18% GST (gstOnPaise) = ₹2,950 per renewal; paying it
+ * extends the tenant's access by one month. This single rate replaced the old per-message
+ * wallet billing — there is no per-message debit anymore.
+ */
+export const SUBSCRIPTION_PRICE_PAISE = 250000;
+
 /** WhatsApp 24-hour customer service window, in milliseconds. */
 export const SERVICE_WINDOW_MS = 24 * 60 * 60 * 1000;
 

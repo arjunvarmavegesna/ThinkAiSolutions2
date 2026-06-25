@@ -5,6 +5,9 @@
 import type {
   CreateRechargeOrderRequest,
   CreateRechargeOrderResponse,
+  CreateSubscriptionOrderResponse,
+  GetSubscriptionResponse,
+  ListInvoicesResponse,
   ListWalletTransactionsResponse,
   WalletBalanceResponse,
 } from '@thinkai/shared';
@@ -35,4 +38,22 @@ export function createRechargeOrder(
   request: CreateRechargeOrderRequest,
 ): Promise<CreateRechargeOrderResponse> {
   return apiClient.post<CreateRechargeOrderResponse>('/wallet/recharge/order', request);
+}
+
+// ---- Subscription (flat ₹2,500/month plan; replaced wallet recharge) ----
+
+/** GET /api/subscription -> current subscription status + the fixed monthly price split. */
+export function getSubscription(): Promise<GetSubscriptionResponse> {
+  return apiClient.get<GetSubscriptionResponse>('/subscription');
+}
+
+/** POST /api/subscription/order -> a Razorpay order for one ₹2,950 monthly renewal. */
+export function createSubscriptionOrder(): Promise<CreateSubscriptionOrderResponse> {
+  return apiClient.post<CreateSubscriptionOrderResponse>('/subscription/order', {});
+}
+
+/** GET /api/subscription/invoices -> GST invoice history (newest first), cursor-paginated. */
+export function getSubscriptionInvoices(cursor?: string): Promise<ListInvoicesResponse> {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+  return apiClient.get<ListInvoicesResponse>(`/subscription/invoices${query}`);
 }

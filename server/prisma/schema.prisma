@@ -30,6 +30,11 @@ model Tenant {
   billing   Json // TenantBilling { legalName?, gstin?, stateCode?, address? }
   createdAt BigInt
 
+  // Flat ₹2,500/month subscription gate (replaced per-message wallet billing). A tenant may
+  // send only while subscriptionCurrentPeriodEnd > now. subscriptionStatus mirrors that for display.
+  subscriptionStatus           String @default("inactive") // SubscriptionStatus: active | inactive
+  subscriptionCurrentPeriodEnd BigInt @default(0) // epoch ms; 0 = never subscribed
+
   @@map("tenants")
 }
 

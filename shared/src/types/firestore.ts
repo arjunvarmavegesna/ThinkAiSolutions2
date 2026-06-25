@@ -24,6 +24,7 @@ import type {
   OptInStatus,
   QualityRating,
   Role,
+  SubscriptionStatus,
   TemplateStatus,
   TenantStatus,
   WabaStatus,
@@ -43,6 +44,14 @@ export interface Tenant {
   status: TenantStatus;
   createdAt: number;
   billing: TenantBilling;
+  /**
+   * Flat-monthly-subscription gate (replaced per-message wallet billing). The tenant may send
+   * only while this is 'active'. Authoritative check is `subscriptionCurrentPeriodEnd > now`;
+   * this string mirrors it for display. Optional so pre-migration reads default to inactive.
+   */
+  subscriptionStatus?: SubscriptionStatus;
+  /** Epoch ms when the current paid month ends. Active iff > now. 0/absent = never subscribed. */
+  subscriptionCurrentPeriodEnd?: number;
 }
 
 export interface TenantBilling {

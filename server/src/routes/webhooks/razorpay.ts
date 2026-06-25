@@ -34,7 +34,7 @@ import { logger } from '../../lib/logger';
 import { rawBodyParser } from '../../middleware/rawBody';
 import { verifyRazorpayWebhookSignature } from '../../services/payments/razorpay';
 import { createForRecharge } from '../../services/invoices/invoiceService';
-import { creditRecharge } from '../../services/wallet/walletService';
+import { applyMonthlyPayment } from '../../services/subscription/subscriptionService';
 
 export const razorpayWebhookRouter = Router();
 
@@ -165,15 +165,12 @@ razorpayWebhookRouter.post(
 
     const { tenantId, id: orderRowId, creditPaise, gstPaise } = found;
 
-    // Credit the NET credit (GST was collected on top at checkout) — idempotent by payment id.
-    const { balanceAfter } = await creditRecharge(tenantId, {
-      paymentId,
-      orderId: razorpayOrderId,
-      creditPaise,
-      gstPaise,
-    });
+    // Extend the flat monthly subscription by one month (was: credit the wallet). The processedEvents
+    // gate above makes this run at most once per captured payment, so the period never double-extends.
+    const { currentPeriodEnd } = await applyMonthlyPayment(tenantId);
 
-    // Generate the GST invoice for this recharge — idempotent (invoice id = payment id).
+    // Generate the GST invoice for this payment — idempotent (invoice id = payment id). The taxable
+    // base is the ₹2,500 subscription price (creditPaise), GST is the 18% collected on top (gstPaise).
     await createForRecharge(tenantId, {
       paymentId,
       orderId: razorpayOrderId,
@@ -181,12 +178,12 @@ razorpayWebhookRouter.post(
       gstPaise,
     });
 
-    // Mark the order paid (cosmetic; failure here does not undo the credit/invoice).
+    // Mark the order paid (cosmetic; failure here does not undo the extension/invoice).
     await markOrderStatus(tenantId, orderRowId, 'paid');
 
     logger.info(
-      { tenantId, paymentId, razorpayOrderId, creditPaise, balanceAfter },
-      'razorpay webhook: wallet credited for captured payment',
+      { tenantId, paymentId, razorpayOrderId, creditPaise, currentPeriodEnd },
+      'razorpay webhook: subscription extended for captured payment',
     );
 
     res.status(200).json({ received: true });

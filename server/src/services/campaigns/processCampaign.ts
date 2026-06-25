@@ -20,6 +20,7 @@ import { msBig } from '../../db/serde';
 import { AppError } from '../../lib/AppError';
 import { logger } from '../../lib/logger';
 import { sendTemplateMessage } from '../messages/sendTemplate';
+import { isActive } from '../subscription/subscriptionService';
 
 interface RecipientRow {
   id: string;
@@ -60,17 +61,19 @@ export async function processCampaign(tenantId: string, campaignId: string): Pro
 
   // RAW variables (merge tags unresolved) — resolved PER RECIPIENT inside the loop below.
   const rawVariables = campaign.variables ?? [];
-  let walletDry = false;
+  // Subscription gate (replaced the wallet-balance gate): if the plan is inactive, every
+  // recipient fails. We check once up front; sendTemplateMessage also re-asserts per send.
+  let subscriptionLapsed = !(await isActive(tenantId));
 
   for (const row of rows) {
     if (row.status !== 'pending') continue;
     const now = Date.now();
 
-    if (walletDry) {
-      // Short-circuit: the wallet is empty; fail the remainder without more debit attempts.
+    if (subscriptionLapsed) {
+      // Short-circuit: no active subscription; fail the remainder without more send attempts.
       await setRecipient(tenantId, campaignId, row.id, {
         status: 'failed',
-        error: { code: 'insufficient_funds', detail: 'Wallet balance exhausted' },
+        error: { code: 'subscription_inactive', detail: 'No active subscription' },
         updatedAt: msBig(now),
       });
       row.status = 'failed';
@@ -116,7 +119,7 @@ export async function processCampaign(tenantId: string, campaignId: string): Pro
       row.status = 'sent';
     } catch (err) {
       const code = err instanceof AppError ? err.code : 'send_failed';
-      if (code === 'insufficient_funds') walletDry = true;
+      if (code === 'subscription_inactive') subscriptionLapsed = true;
       await setRecipient(tenantId, campaignId, row.id, {
         status: 'failed',
         error: { code, detail: err instanceof Error ? err.message : 'Send failed' },

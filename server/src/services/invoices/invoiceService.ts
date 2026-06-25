@@ -17,7 +17,14 @@
  */
 
 import { stateCodeFromGstin } from '@thinkai/shared';
-import type { Invoice, InvoiceTaxType, Tenant, TenantBilling } from '@thinkai/shared';
+import type {
+  Invoice,
+  InvoiceDTO,
+  InvoiceTaxType,
+  ListInvoicesResponse,
+  Tenant,
+  TenantBilling,
+} from '@thinkai/shared';
 import { Prisma } from '@prisma/client';
 import type { Invoice as PInvoice } from '@prisma/client';
 
@@ -217,4 +224,27 @@ export async function createForRecharge(
   }
 
   return invoice;
+}
+
+/**
+ * List a tenant's GST invoices, newest first. Cursor-paginated by the opaque payment id (each
+ * invoice's primary key). These are now the record of monthly subscription payments.
+ */
+export async function listInvoices(
+  tenantId: string,
+  opts: { cursor?: string; limit?: number } = {},
+): Promise<ListInvoicesResponse> {
+  const limit = Math.min(Math.max(Math.floor(opts.limit ?? 30), 1), 100);
+  const rows = await prisma.invoice.findMany({
+    where: { tenantId },
+    orderBy: [{ createdAt: 'desc' }, { razorpayPaymentId: 'desc' }],
+    take: limit + 1,
+    ...(opts.cursor ? { cursor: { razorpayPaymentId: opts.cursor }, skip: 1 } : {}),
+  });
+
+  const page = rows.slice(0, limit);
+  const hasMore = rows.length > limit;
+  const items: InvoiceDTO[] = page.map((r) => ({ id: r.razorpayPaymentId, ...toInvoice(r) }));
+  const nextCursor = hasMore ? page[page.length - 1].razorpayPaymentId : undefined;
+  return nextCursor ? { items, nextCursor } : { items };
 }

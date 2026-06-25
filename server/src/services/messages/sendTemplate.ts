@@ -1,55 +1,34 @@
 /**
- * Send an approved template message to a contact (single send, Phase 1).
+ * Send an approved template message to a contact (single send).
  *
- * Orchestration order is deliberate and the comments call out the non-obvious billing /
- * failure-compensation steps:
+ * Billing model (post-pivot): there is NO per-message debit. Sending is gated by the tenant's
+ * flat ₹2,500/month subscription — `assertActive` throws 402 'subscription_inactive' when the plan
+ * has lapsed, so we never call the BSP. Every message is recorded with costPaise = 0; the billable
+ * `category` is still stored on the row for analytics/reporting only.
  *
- *   1. Load the template doc by name and assert it is 'approved' (we must never send a
- *      draft/pending/rejected template — Meta would reject it and we'd still be billed).
- *   2. Classify the billable category and resolve the tenant's per-category pricing.
- *   3. Resolve the BSP context (which connected WABA + apikey to use).
- *   4. Persist the outbound message doc FIRST (status 'queued') so we have a stable
- *      messageId to use as the idempotency key for the wallet debit.
- *   5. DEBIT BEFORE SEND: atomically debit the wallet. If the balance is insufficient
- *      this throws 402 and we never call the BSP. The debit is idempotent on messageId.
- *   6. Call the provider. On success -> mark 'sent' + store bspMessageId.
- *      On failure -> mark 'failed' + COMPENSATE by refunding the debit (idempotent), so a
- *      failed send never costs the tenant money.
- *
- * We bill the message because Meta charges for the template conversation regardless of
- * delivery; we only refund when the *send itself* failed (the BSP never accepted it).
+ * Order:
+ *   1. Load the template and assert it is 'approved' (never send a draft/pending/rejected one —
+ *      Meta would reject it).
+ *   2. assertActive(tenantId) — gate on an active subscription before anything else.
+ *   3. Resolve the BSP context (which connected WABA + token) and the provider (metaCloud).
+ *   4. Persist the outbound message doc (status 'queued', costPaise 0).
+ *   5. Call the provider. On success -> 'sent' + store wamid; on failure -> 'failed'.
  */
 
 import { randomUUID } from 'node:crypto';
 
-import type { Pricing, SendMessageResponse, Template } from '@thinkai/shared';
+import type { SendMessageResponse, Template } from '@thinkai/shared';
 
 import { prisma } from '../../config/db';
-import { toPricing, toTemplate } from '../../db/mappers';
+import { toTemplate } from '../../db/mappers';
 import { msBig } from '../../db/serde';
 import { AppError } from '../../lib/AppError';
 import { logger } from '../../lib/logger';
-import {
-  getBspProvider,
-  resolveTenantBspContext,
-} from '../bsp';
-import { computeCharge } from '../wallet/billing';
-import { debitForMessage, refundDebit } from '../wallet/walletService';
-import {
-  conversationIdForPhone,
-  touchConversationForOutbound,
-} from '../conversations/window';
+import { getBspProvider, resolveTenantBspContext } from '../bsp';
+import { assertActive } from '../subscription/subscriptionService';
+import { conversationIdForPhone, touchConversationForOutbound } from '../conversations/window';
 import { categoryForTemplate } from './category';
 import { resolveTemplateHeaderMedia } from './templateHeaderMedia';
-
-/** Load the tenant's per-category charge rates; required for any billable send. */
-async function loadPricing(tenantId: string): Promise<Pricing> {
-  const row = await prisma.pricing.findUnique({ where: { tenantId } });
-  if (!row) {
-    throw AppError.badRequest('No pricing configured for this tenant', 'no_pricing');
-  }
-  return toPricing(row);
-}
 
 /** Load an approved template by its name (template id == template name). */
 async function loadApprovedTemplate(tenantId: string, templateName: string): Promise<Template> {
@@ -83,13 +62,11 @@ export async function sendTemplateMessage(
 ): Promise<SendMessageResponse> {
   const { toPhone, templateName, languageCode, variables, campaignId, campaignRecipientId } = params;
 
-  // 1. Validate the template is real and approved before doing anything billable.
+  // 1. Validate the template is real and approved before doing anything.
   const template = await loadApprovedTemplate(tenantId, templateName);
 
-  // 2. Classify category + resolve what we charge this tenant for it.
-  const category = categoryForTemplate(template);
-  const pricing = await loadPricing(tenantId);
-  const chargePaise = computeCharge(category, pricing);
+  // 2. Subscription gate — no active plan means no send (and no BSP call). Throws 402.
+  await assertActive(tenantId);
 
   // 3. Resolve which WABA + token to send through (token stays in-memory only) and the
   //    provider that serves it (metaCloud).
@@ -98,12 +75,13 @@ export async function sendTemplateMessage(
 
   // 3b. Media-header templates (IMAGE/VIDEO/DOCUMENT) must carry a HEADER parameter or Meta
   //     rejects the send (#132012). Reuse the approved sample: upload it once to a reusable
-  //     media id (cached per template) and attach it. Resolved BEFORE the message row + debit so
-  //     a missing/expired sample fails fast without charging the tenant. undefined for text-only
-  //     / text-header templates, leaving their send byte-for-byte unchanged.
+  //     media id (cached per template) and attach it. Resolved BEFORE the message row so a
+  //     missing/expired sample fails fast. undefined for text-only / text-header templates,
+  //     leaving their send byte-for-byte unchanged.
   const header = await resolveTemplateHeaderMedia(tenantId, template, ctx, provider);
 
-  // 4. Persist the message row first so we have a stable id for the debit idempotency key.
+  // 4. Persist the message row. `category` is kept for reporting; `costPaise` is always 0 now.
+  const category = categoryForTemplate(template);
   const now = Date.now();
   const conversationId = conversationIdForPhone(toPhone);
   const messageId = randomUUID();
@@ -120,32 +98,14 @@ export async function sendTemplateMessage(
       templateName,
       status: 'queued',
       category,
-      costPaise: chargePaise,
+      costPaise: 0,
       ts: msBig(now),
       ...(campaignId ? { campaignId } : {}),
       ...(campaignRecipientId ? { campaignRecipientId } : {}),
     },
   });
 
-  // 5. DEBIT BEFORE SEND. Throws 402 insufficient_funds if the wallet can't cover it,
-  //    in which case we mark the queued message failed and do NOT call the BSP.
-  try {
-    await debitForMessage(tenantId, { messageId, category, chargePaise });
-  } catch (err) {
-    await prisma.message.update({
-      where: { tenantId_id: { tenantId, id: messageId } },
-      data: {
-        status: 'failed',
-        error: {
-          code: err instanceof AppError ? err.code : 'debit_failed',
-          detail: err instanceof Error ? err.message : 'Wallet debit failed',
-        },
-      },
-    });
-    throw err;
-  }
-
-  // 6. Hand off to the BSP. On any provider failure we COMPENSATE the debit.
+  // 5. Hand off to the BSP.
   try {
     const result = await provider.sendTemplate(ctx, {
       toPhone,
@@ -170,10 +130,9 @@ export async function sendTemplateMessage(
 
     return { messageId, conversationId, status: 'sent' };
   } catch (err) {
-    // Compensating action: the BSP never accepted the send, so the tenant must not pay.
     logger.error(
       { tenantId, messageId, templateName, err },
-      'sendTemplateMessage: BSP send failed, refunding debit',
+      'sendTemplateMessage: BSP send failed',
     );
 
     await prisma.message.update({
@@ -186,9 +145,6 @@ export async function sendTemplateMessage(
         },
       },
     });
-
-    // refundDebit is idempotent and a no-op if nothing was actually debited (free message).
-    await refundDebit(tenantId, { messageId });
 
     throw err;
   }
