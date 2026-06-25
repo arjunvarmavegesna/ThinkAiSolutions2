@@ -44,6 +44,7 @@ import {
 import {
   bulkAction,
   createContact,
+  deleteAllContacts,
   deleteContact,
   listContacts,
   updateContact,
@@ -120,6 +121,18 @@ contactsRouter.post(
     const tenantId = res.locals.tenantId as string;
     const input = parseOrThrow(bulkActionSchema, req.body);
     const result: BulkActionResponse = await bulkAction(tenantId, input);
+    res.json(result);
+  }),
+);
+
+/** DELETE /api/contacts — delete ALL contacts for the tenant. */
+contactsRouter.delete(
+  '/',
+  verifyAuth,
+  requireTenant,
+  asyncHandler(async (_req: Request, res: Response) => {
+    const tenantId = res.locals.tenantId as string;
+    const result = await deleteAllContacts(tenantId);
     res.json(result);
   }),
 );

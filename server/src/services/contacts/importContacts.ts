@@ -103,7 +103,7 @@ export async function importContacts(
             createdAt: now,
             updatedAt: now,
             tags: e.tags,
-            optInStatus: 'unknown',
+            optInStatus: 'opted_in',
             source: 'import',
             status: 'active',
             ...(e.name ? { name: e.name, nameLower: e.name.toLowerCase() } : {}),

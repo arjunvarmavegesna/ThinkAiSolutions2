@@ -48,6 +48,10 @@ export const updateContact = (id: string, body: UpdateContactRequest): Promise<C
 export const deleteContact = (id: string): Promise<void> =>
   apiClient.del<void>(`/contacts/${encodeURIComponent(id)}`);
 
+/** DELETE /api/contacts — removes ALL contacts for the tenant. */
+export const deleteAllContacts = (): Promise<{ deleted: number }> =>
+  apiClient.del<{ deleted: number }>('/contacts');
+
 /** POST /api/contacts/import — one chunk of mapped rows. */
 export const importContacts = (body: ImportContactsRequest): Promise<ImportContactsResponse> =>
   apiClient.post<ImportContactsResponse>('/contacts/import', body);

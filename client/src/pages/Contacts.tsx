@@ -53,6 +53,7 @@ import { cn } from '@/lib/utils';
 import {
   bulkAction,
   createContact,
+  deleteAllContacts,
   deleteContact,
   getContactSettings,
   listContacts,
@@ -236,6 +237,20 @@ export function Contacts(): JSX.Element {
     [reloadCurrent],
   );
 
+  const handleDeleteAll = useCallback(async () => {
+    if (!window.confirm('Delete ALL contacts? This cannot be undone.')) return;
+    if (!window.confirm('Are you sure? Every contact for this account will be permanently removed.')) return;
+    try {
+      const { deleted } = await deleteAllContacts();
+      setNotice(`All contacts deleted (${deleted} removed).`);
+      setHistory([undefined]);
+      setPageIndex(0);
+      void fetchPage(undefined, applied);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Delete all failed.');
+    }
+  }, [applied, fetchPage]);
+
   // ---- selection + bulk ----
   const allOnPageSelected = contacts.length > 0 && contacts.every((c) => selected.has(c.id));
   const toggleAll = (): void =>
@@ -324,6 +339,14 @@ export function Contacts(): JSX.Element {
             <Button onClick={openAdd}>
               <Plus />
               Add contact
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => void handleDeleteAll()}
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/40"
+            >
+              <Trash2 />
+              Remove all
             </Button>
           </>
         }

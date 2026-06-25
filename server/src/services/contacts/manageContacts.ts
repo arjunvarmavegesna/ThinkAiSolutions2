@@ -81,7 +81,7 @@ export async function createContact(tenantId: string, input: CreateContactInput)
       updatedAt: msBig(now),
       ...(name ? { name, nameLower: name.toLowerCase() } : {}),
       ...(input.tags ? { tags: dedupeTags(input.tags) } : {}),
-      optInStatus: input.optInStatus ?? 'unknown',
+      optInStatus: input.optInStatus ?? 'opted_in',
       ...(input.attributes ? { attributes: input.attributes } : {}),
       source: input.source ?? 'manual',
       status: input.status ?? 'active',
@@ -126,6 +126,13 @@ export async function updateContact(
     data: update,
   });
   return toContact(row) as ContactDTO;
+}
+
+/** Delete all contacts for a tenant. */
+export async function deleteAllContacts(tenantId: string): Promise<{ deleted: number }> {
+  const { count } = await prisma.contact.deleteMany({ where: { tenantId } });
+  logger.info({ tenantId, count }, 'contacts: deleted all');
+  return { deleted: count };
 }
 
 /** Delete a contact. */
