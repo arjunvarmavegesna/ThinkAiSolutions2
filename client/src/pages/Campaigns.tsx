@@ -5,7 +5,6 @@
  * the per-message debit + BSP send pipeline on the server.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Eye, Megaphone, Plus, Send, Users, XCircle } from 'lucide-react';
 import { containsMergeTag, resolveVariable } from '@thinkai/shared';
 import type { CampaignDTO, CreateCampaignRequest, TemplateDTO } from '@thinkai/shared';
@@ -137,18 +136,7 @@ export function Campaigns(): JSX.Element {
   const [notice, setNotice] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>('all');
   const [modalOpen, setModalOpen] = useState(false);
-  // Open the detail modal directly from a ?id= deep-link (e.g. from the dashboard or ⌘K palette).
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [detailId, setDetailId] = useState<string | null>(() => searchParams.get('id'));
-
-  const closeDetail = useCallback(() => {
-    setDetailId(null);
-    if (searchParams.has('id')) {
-      const next = new URLSearchParams(searchParams);
-      next.delete('id');
-      setSearchParams(next, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -353,7 +341,7 @@ export function Campaigns(): JSX.Element {
         />
       )}
 
-      {detailId && <CampaignDetailModal campaignId={detailId} onClose={closeDetail} />}
+      {detailId && <CampaignDetailModal campaignId={detailId} onClose={() => setDetailId(null)} />}
     </div>
   );
 }

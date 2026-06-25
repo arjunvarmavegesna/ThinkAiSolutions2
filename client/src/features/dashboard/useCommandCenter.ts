@@ -6,37 +6,19 @@
  */
 import { useEffect, useState } from 'react';
 
-import type {
-  CampaignDTO,
-  MessagingTier,
-  QualityRating,
-  ReportMessageRow,
-  SubscriptionStatus,
-  WabaStatus,
-} from '@thinkai/shared';
+import type { CampaignDTO, MessagingTier, QualityRating, ReportMessageRow } from '@thinkai/shared';
 
 import { getWabaStatus } from '../../api/onboardingApi';
 import { getQuality, getMessageReport } from '../reports/api';
 import { listTemplates } from '../templates/api';
 import { listContacts } from '../contacts/api';
 import { listCampaigns } from '../campaigns/api';
-import { getSubscription } from '../wallet/api';
 
 export interface CommandCenterNumber {
   phoneNumber: string;
   displayName: string;
-  status: WabaStatus;
   qualityRating: QualityRating;
   messagingTier: MessagingTier;
-  /** Epoch ms Meta quality/tier was last refreshed for this number — the dashboard's "last sync". */
-  qualityUpdatedAt?: number;
-}
-
-export interface CommandCenterPlan {
-  status: SubscriptionStatus;
-  active: boolean;
-  /** Epoch ms the current paid month ends (0 = never subscribed). */
-  currentPeriodEnd: number;
 }
 
 export interface CommandCenterData {
@@ -48,8 +30,6 @@ export interface CommandCenterData {
   contactsTotal: number | null;
   campaigns: CampaignDTO[];
   recentMessages: ReportMessageRow[];
-  /** Subscription state, when the caller is allowed to read it (tenant_admin); null for agents. */
-  plan: CommandCenterPlan | null;
 }
 
 const EMPTY: CommandCenterData = {
@@ -61,7 +41,6 @@ const EMPTY: CommandCenterData = {
   contactsTotal: null,
   campaigns: [],
   recentMessages: [],
-  plan: null,
 };
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -74,17 +53,14 @@ export function useCommandCenter(): { data: CommandCenterData; loading: boolean 
     let active = true;
 
     void (async () => {
-      const [waba, quality, templates, contacts, campaigns, messages, subscription] =
-        await Promise.allSettled([
-          getWabaStatus(),
-          getQuality(false),
-          listTemplates(),
-          listContacts({ limit: 1 }),
-          listCampaigns(),
-          getMessageReport({ from: Date.now() - 14 * DAY, to: Date.now(), limit: 8 }),
-          // Agents can't read subscription — a rejection here just leaves `plan` null.
-          getSubscription(),
-        ]);
+      const [waba, quality, templates, contacts, campaigns, messages] = await Promise.allSettled([
+        getWabaStatus(),
+        getQuality(false),
+        listTemplates(),
+        listContacts({ limit: 1 }),
+        listCampaigns(),
+        getMessageReport({ from: Date.now() - 14 * DAY, to: Date.now(), limit: 8 }),
+      ]);
 
       if (!active) return;
 
@@ -99,17 +75,8 @@ export function useCommandCenter(): { data: CommandCenterData; loading: boolean 
         next.number = {
           phoneNumber: w.phoneNumber,
           displayName: w.displayName,
-          status: w.status,
           qualityRating: w.qualityRating,
           messagingTier: w.messagingTier,
-          qualityUpdatedAt: w.qualityUpdatedAt,
-        };
-      }
-      if (subscription.status === 'fulfilled') {
-        next.plan = {
-          status: subscription.value.status,
-          active: subscription.value.active,
-          currentPeriodEnd: subscription.value.currentPeriodEnd,
         };
       }
       if (templates.status === 'fulfilled') {
