@@ -68,22 +68,32 @@ cp client/.env.example client/.env
 
 ### Server (`server/.env`) — key variables
 
+See `server/.env.example` for the full reference. Key vars:
+
 | Variable | Purpose |
 |---|---|
-| `DATABASE_URL` | PostgreSQL connection string |
+| `DATABASE_URL` | PostgreSQL connection string (REQUIRED) |
+| `PORT` | HTTP port (default `8080`) |
+| `NODE_ENV` | `development` \| `production` |
+| `CORS_ORIGIN` | Allowed browser origin (e.g. `https://console.thinkaisolutions.com`) |
+| `PUBLIC_BASE_URL` | Public server URL — used to build the Meta webhook callback URL |
 | `FIREBASE_PROJECT_ID` | Firebase project id |
 | `FIREBASE_CLIENT_EMAIL` | Service account email |
-| `FIREBASE_PRIVATE_KEY` | Service account private key |
-| `META_APP_ID` | Meta App ID (public — used for Embedded Signup popup) |
-| `META_APP_SECRET` | Meta App Secret (webhook signature verification) |
-| `META_SYSTEM_USER_TOKEN` | Meta System User access token (all Graph API calls) |
-| `META_CONFIG_ID` | Meta Embedded Signup config id |
+| `FIREBASE_PRIVATE_KEY` | Service account private key (keep literal `\n` escapes) |
+| `META_MODE` | `test` (dev) or `live` (production) |
+| `META_APP_ID` | Meta App ID — public, sent to browser for Embedded Signup popup |
+| `META_APP_SECRET` | Meta App Secret — webhook HMAC verification (server-only) |
+| `META_TEST_ACCESS_TOKEN` | Temp token for test number (test mode only, rotates ~24h) |
+| `META_SYSTEM_USER_TOKEN` | System User token for all Graph calls (live mode only) |
+| `META_CONFIG_ID` | Embedded Signup config id (live mode only) |
 | `META_WEBHOOK_VERIFY_TOKEN` | Token echoed back on webhook GET handshake |
+| `SECRET_STORE_DRIVER` | `firestore` (encrypted) or `env` |
+| `SECRETS_ENCRYPTION_KEY` | 32-byte key (base64) for AES-256-GCM secret storage |
 | `RAZORPAY_KEY_ID` | Razorpay key id |
-| `RAZORPAY_KEY_SECRET` | Razorpay key secret |
+| `RAZORPAY_KEY_SECRET` | Razorpay key secret (server-only) |
 | `RAZORPAY_WEBHOOK_SECRET` | Razorpay webhook signing secret |
 | `SELLER_GSTIN` | Our GSTIN (for GST invoices) |
-| `SELLER_STATE` | Our GST state code |
+| `SELLER_STATE` | Our GST state code (e.g. `36` for Telangana) |
 
 ### Client (`client/.env`) — all public, safe in bundle
 
