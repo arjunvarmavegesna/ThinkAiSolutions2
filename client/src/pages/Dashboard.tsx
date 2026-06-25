@@ -1,10 +1,9 @@
 /**
- * Tenant Home — a WhatsApp Business "command center" (Stripe / Vercel / Resend flavoured):
- * answers "is my account set up, what's its health, what needs my attention, what happened, and
- * what next" before any charts. A workspace-summary hero (identity / number / tier / quality /
- * plan / last sync), an onboarding checklist for young workspaces, an actionable + dismissible
- * attention queue, context-rich KPIs with trends, recent campaigns + activity with click-through,
- * and an on-demand analytics panel that only loads once there's real volume.
+ * Tenant Home — a compact WhatsApp Business "command center". A single-line identity strip
+ * (workspace · number · connection · quality · tier) instead of a heavy hero, a light inline
+ * attention queue for what needs action, four compact KPIs with period-over-period trends, a slim
+ * 30-day trend (deep analytics lives one click away on Reports), and recent campaigns + activity.
+ * Young workspaces get an onboarding checklist instead of the strip.
  *
  * All data comes from existing read endpoints (useDashboardStats + useCommandCenter) — no new
  * APIs, schema, or business logic.
@@ -16,23 +15,15 @@ import {
   ArrowDownLeft,
   ArrowRight,
   ArrowUpRight,
-  BadgeCheck,
   CheckCircle2,
   Circle,
-  CreditCard,
   FileText,
-  Gauge,
   Info,
   Megaphone,
-  MessageSquarePlus,
-  Phone,
-  RefreshCw,
   Send,
-  ShieldCheck,
   TrendingDown,
   TrendingUp,
   Upload,
-  Users,
   X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -46,15 +37,10 @@ import { Button } from '@/components/ui/button';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CountUp } from '@/components/ui/count-up';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn, formatCount } from '@/lib/utils';
 
-const AnalyticsPanel = lazy(() => import('../features/dashboard/AnalyticsPanel'));
+const TrendStrip = lazy(() => import('../features/dashboard/TrendStrip'));
 
 const EMPTY: Counts = { submitted: 0, sent: 0, delivered: 0, failed: 0 };
 
@@ -67,9 +53,8 @@ function greeting(): string {
 
 const QUICK_ACTIONS = [
   { label: 'New campaign', to: '/campaigns', icon: Megaphone, primary: true },
-  { label: 'Upload contacts', to: '/contacts', icon: Upload },
-  { label: 'Create template', to: '/templates', icon: MessageSquarePlus },
-  { label: 'Open inbox', to: '/inbox', icon: Send },
+  { label: 'Inbox', to: '/inbox', icon: Send },
+  { label: 'Contacts', to: '/contacts', icon: Upload },
 ];
 
 const TIER_LABEL: Record<MessagingTier, string> = {
@@ -83,10 +68,10 @@ const TIER_LABEL: Record<MessagingTier, string> = {
 };
 
 const QUALITY: Record<QualityRating, { label: string; dot: string }> = {
-  green: { label: 'High', dot: 'bg-success' },
-  yellow: { label: 'Medium', dot: 'bg-warning' },
-  red: { label: 'Low', dot: 'bg-destructive' },
-  unknown: { label: 'Not rated', dot: 'bg-muted-foreground/50' },
+  green: { label: 'High quality', dot: 'bg-success' },
+  yellow: { label: 'Medium quality', dot: 'bg-warning' },
+  red: { label: 'Low quality', dot: 'bg-destructive' },
+  unknown: { label: 'Quality not rated', dot: 'bg-muted-foreground/50' },
 };
 
 export function Dashboard(): JSX.Element {
@@ -105,60 +90,38 @@ export function Dashboard(): JSX.Element {
   const steps = buildSteps(cc, last30);
   const stepsDone = steps.filter((s) => s.done).length;
   const onboarding = !ccLoading && stepsDone < steps.length;
-  const isNew =
-    !ccLoading &&
-    !cc.connected &&
-    (cc.contactsTotal ?? 0) === 0 &&
-    cc.templatesTotal === 0 &&
-    last30.sent === 0;
   const hasVolume = last30.sent > 0;
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="animate-fade-in space-y-6">
-        {/* Greeting + quick actions */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              {greeting()}, {firstName}
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {isNew
-                ? "Let's get your WhatsApp Business account live."
-                : "Here's your WhatsApp command center."}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {QUICK_ACTIONS.map((a) => (
-              <Button key={a.to} asChild variant={a.primary ? 'default' : 'outline'} size="sm">
-                <Link to={a.to}>
-                  <a.icon />
-                  {a.label}
-                </Link>
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* Onboarding checklist replaces the workspace summary until setup is complete */}
+      <div className="animate-fade-in space-y-5">
+        {/* Header: identity strip (set up) or setup banner + checklist (onboarding) */}
         {ccLoading ? (
-          <Skeleton className="h-40 w-full rounded-lg" />
+          <Skeleton className="h-9 w-full max-w-xl rounded-md" />
         ) : onboarding ? (
-          <OnboardingChecklist steps={steps} stepsDone={stepsDone} isNew={isNew} />
+          <>
+            <SetupBanner firstName={firstName} connected={cc.connected} />
+            <OnboardingChecklist steps={steps} stepsDone={stepsDone} />
+          </>
         ) : (
-          <WorkspaceSummary cc={cc} />
+          <IdentityStrip cc={cc} />
         )}
 
-        {/* Attention queue — actionable + dismissible */}
-        <AttentionQueue today={today} last30={last30} deliveryRate={deliveryRate} loading={statsLoading} />
+        {/* Attention — light inline lines, only when something needs action */}
+        <AttentionQueue
+          today={today}
+          last30={last30}
+          deliveryRate={deliveryRate}
+          pendingTemplates={Math.max(0, cc.templatesTotal - cc.templatesApproved)}
+          loading={statsLoading || ccLoading}
+        />
 
-        {/* KPIs — context + trend + click-through */}
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {/* KPIs — compact, with trend + tooltip + click-through */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
           <KpiCard
             to="/reports"
             label="Messages sent"
             tooltip="Template and session messages sent in the last 30 days."
-            icon={Send}
             loading={statsLoading}
             value={last30.sent}
             format={formatCount}
@@ -168,8 +131,7 @@ export function Dashboard(): JSX.Element {
           <KpiCard
             to="/reports"
             label="Delivery rate"
-            tooltip="Delivered ÷ sent over the last 30 days. 95% and above is considered healthy."
-            icon={BadgeCheck}
+            tooltip="Delivered ÷ sent over the last 30 days. 95% and above is healthy."
             loading={statsLoading}
             value={deliveryRate}
             format={(n) => `${n.toFixed(1)}%`}
@@ -179,21 +141,9 @@ export function Dashboard(): JSX.Element {
             trend={trends.delivery}
           />
           <KpiCard
-            to="/contacts"
-            label="Contacts"
-            tooltip="People in your audience available for campaigns and conversations."
-            icon={Users}
-            loading={ccLoading}
-            value={cc.contactsTotal}
-            format={formatCount}
-            emptyLabel={cc.contactsTotal === 0 ? 'None yet' : '—'}
-            hint={(cc.contactsTotal ?? 0) > 0 ? 'Your audience' : 'Import a CSV'}
-          />
-          <KpiCard
             to="/reports"
             label="Failed (30d)"
             tooltip="Messages that failed to deliver in the last 30 days. Lower is better."
-            icon={AlertTriangle}
             loading={statsLoading}
             value={last30.failed}
             format={formatCount}
@@ -202,17 +152,31 @@ export function Dashboard(): JSX.Element {
             tone={last30.failed > 0 ? 'danger' : undefined}
             trend={trends.failed}
           />
+          <KpiCard
+            to="/contacts"
+            label="Contacts"
+            tooltip="People in your audience available for campaigns and conversations."
+            loading={ccLoading}
+            value={cc.contactsTotal}
+            format={formatCount}
+            emptyLabel={cc.contactsTotal === 0 ? 'None yet' : '—'}
+            hint={(cc.contactsTotal ?? 0) > 0 ? 'Your audience' : 'Import a CSV'}
+          />
         </div>
+
+        {/* Slim 30-day trend — only once there's volume; deep analytics is on Reports */}
+        {hasVolume && (
+          <Suspense fallback={<Skeleton className="h-48 w-full rounded-lg" />}>
+            <TrendStrip daily={daily} todaySent={today.sent} />
+          </Suspense>
+        )}
 
         {/* Recent campaigns + activity */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader className="flex-row items-center justify-between">
               <CardTitle>Recent campaigns</CardTitle>
-              <Link
-                to="/campaigns"
-                className="inline-flex items-center gap-1 text-xs font-medium text-primary-emphasis hover:underline"
-              >
+              <Link to="/campaigns" className="inline-flex items-center gap-1 text-xs font-medium text-primary-emphasis hover:underline">
                 View all
                 <ArrowRight className="size-3.5" />
               </Link>
@@ -230,7 +194,7 @@ export function Dashboard(): JSX.Element {
                 />
               ) : (
                 <ul>
-                  {cc.campaigns.slice(0, 4).map((c, i) => (
+                  {cc.campaigns.slice(0, 5).map((c, i) => (
                     <li key={c.id} className={cn(i > 0 && 'border-t border-border')}>
                       <CampaignRow c={c} />
                     </li>
@@ -243,10 +207,7 @@ export function Dashboard(): JSX.Element {
           <Card>
             <CardHeader className="flex-row items-center justify-between">
               <CardTitle>Recent activity</CardTitle>
-              <Link
-                to="/reports"
-                className="inline-flex items-center gap-1 text-xs font-medium text-primary-emphasis hover:underline"
-              >
+              <Link to="/reports" className="inline-flex items-center gap-1 text-xs font-medium text-primary-emphasis hover:underline">
                 View log
                 <ArrowRight className="size-3.5" />
               </Link>
@@ -274,166 +235,91 @@ export function Dashboard(): JSX.Element {
             </CardContent>
           </Card>
         </div>
-
-        {/* Analytics — lazy-loaded and only once there's real volume (no empty chart dominating) */}
-        {hasVolume && (
-          <Suspense fallback={<Skeleton className="h-[26rem] w-full rounded-lg" />}>
-            <AnalyticsPanel />
-          </Suspense>
-        )}
       </div>
     </TooltipProvider>
   );
 }
 
-/* ----------------------------- workspace summary ----------------------------- */
+/* ----------------------------- header ----------------------------- */
 
-function WorkspaceSummary({ cc }: { cc: CommandCenterData }): JSX.Element {
+/** One quiet line: workspace · number · connection · quality · tier, then quick actions. */
+function IdentityStrip({ cc }: { cc: CommandCenterData }): JSX.Element {
   const name = cc.number?.displayName?.trim() || 'Your workspace';
-  const initial = name.charAt(0).toUpperCase();
-
-  const connection: { label: string; dot: string; tone: 'success' | 'warning' | 'muted' } = cc.connected
-    ? { label: 'Connected', dot: 'bg-success', tone: 'success' }
-    : cc.hasWaba
-      ? { label: 'Pending', dot: 'bg-warning', tone: 'warning' }
-      : { label: 'Not connected', dot: 'bg-muted-foreground/50', tone: 'muted' };
-
   const quality = cc.number ? QUALITY[cc.number.qualityRating] : null;
-  const planLabel = cc.plan ? (cc.plan.active ? 'Active' : 'Inactive') : '—';
+  const connected = cc.connected;
 
   return (
-    <Card className="overflow-hidden">
-      {/* Brand accent hairline — the single brand moment on this surface (BRAND.md §1). */}
-      <div className="h-1 bg-brand-gradient" />
-      <CardContent className="p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-gradient text-lg font-semibold text-white shadow-sm">
-              {initial}
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-sm">
+        <h1 className="truncate text-lg font-semibold tracking-tight text-foreground">{name}</h1>
+        {cc.number?.phoneNumber && (
+          <>
+            <Dot />
+            <span className="font-mono text-[13px] text-muted-foreground">{cc.number.phoneNumber}</span>
+          </>
+        )}
+        <Dot />
+        <span className="inline-flex items-center gap-1.5">
+          <span className={cn('size-1.5 rounded-full', connected ? 'bg-success' : 'bg-muted-foreground/50')} />
+          <span className={cn('font-medium', connected ? 'text-success-emphasis' : 'text-muted-foreground')}>
+            {connected ? 'Connected' : 'Not connected'}
+          </span>
+        </span>
+        {quality && cc.number?.qualityRating !== 'unknown' && (
+          <>
+            <Dot />
+            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+              <span className={cn('size-1.5 rounded-full', quality.dot)} />
+              {quality.label}
             </span>
-            <div className="min-w-0">
-              <h2 className="truncate text-lg font-semibold tracking-tight text-foreground">{name}</h2>
-              <div className="mt-0.5 flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone className="size-3.5 shrink-0" />
-                <span className="truncate font-mono text-[13px]">
-                  {cc.number?.phoneNumber ?? 'No number connected'}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className={cn('size-1.5 rounded-full', connection.dot)} />
-                  <span
-                    className={cn(
-                      'text-xs font-medium',
-                      connection.tone === 'success'
-                        ? 'text-success-emphasis'
-                        : connection.tone === 'warning'
-                          ? 'text-warning-emphasis'
-                          : 'text-muted-foreground',
-                    )}
-                  >
-                    {connection.label}
-                  </span>
-                </span>
-              </div>
-            </div>
-          </div>
-          {!cc.connected && (
-            <Button asChild size="sm" variant="outline">
-              <Link to="/connect">
-                Connect WhatsApp
-                <ArrowRight />
-              </Link>
-            </Button>
-          )}
-        </div>
+          </>
+        )}
+        {cc.number && cc.number.messagingTier !== 'unknown' && (
+          <>
+            <Dot />
+            <span className="text-muted-foreground">{TIER_LABEL[cc.number.messagingTier]}</span>
+          </>
+        )}
+      </div>
 
-        {/* Health facts */}
-        <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border pt-4 sm:grid-cols-3 lg:grid-cols-6">
-          <Fact icon={ShieldCheck} label="Connection" value={connection.label} dot={connection.dot} to="/connect" />
-          <Fact icon={CreditCard} label="Plan" value={planLabel} to="/wallet" />
-          <Fact icon={Gauge} label="Messaging tier" value={cc.number ? TIER_LABEL[cc.number.messagingTier] : '—'} to="/reports" />
-          <Fact
-            icon={ShieldCheck}
-            label="Quality"
-            value={quality?.label ?? '—'}
-            dot={quality?.dot}
-            to="/reports"
-          />
-          <Fact
-            icon={FileText}
-            label="Templates"
-            value={cc.templatesTotal === 0 ? 'None' : `${cc.templatesApproved}/${cc.templatesTotal} approved`}
-            to="/templates"
-          />
-          <Fact icon={RefreshCw} label="Last sync" value={compactAgo(cc.number?.qualityUpdatedAt)} />
-        </div>
-      </CardContent>
-    </Card>
+      <div className="flex shrink-0 flex-wrap gap-2">
+        {QUICK_ACTIONS.map((a) => (
+          <Button key={a.to} asChild variant={a.primary ? 'default' : 'outline'} size="sm">
+            <Link to={a.to}>
+              <a.icon />
+              {a.label}
+            </Link>
+          </Button>
+        ))}
+      </div>
+    </div>
   );
 }
 
-function Fact({
-  icon: Icon,
-  label,
-  value,
-  dot,
-  to,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  dot?: string;
-  to?: string;
-}): JSX.Element {
-  const body = (
-    <>
-      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-        <Icon className="size-3.5" />
-        {label}
-      </div>
-      <p className="mt-1 flex items-center gap-1.5 truncate text-sm font-semibold text-foreground" title={value}>
-        {dot && <span className={cn('size-2 shrink-0 rounded-full', dot)} />}
-        <span className="truncate">{value}</span>
-      </p>
-    </>
-  );
-  if (!to) return <div className="min-w-0">{body}</div>;
+function Dot(): JSX.Element {
+  return <span className="text-muted-foreground/40" aria-hidden>·</span>;
+}
+
+function SetupBanner({ firstName, connected }: { firstName: string; connected: boolean }): JSX.Element {
   return (
-    <Link
-      to={to}
-      className="group min-w-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
-    >
-      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-        <Icon className="size-3.5" />
-        {label}
-      </div>
-      <p className="mt-1 flex items-center gap-1.5 truncate text-sm font-semibold text-foreground transition-colors group-hover:text-primary-emphasis" title={value}>
-        {dot && <span className={cn('size-2 shrink-0 rounded-full', dot)} />}
-        <span className="truncate">{value}</span>
+    <div className="flex flex-col gap-1">
+      <h1 className="text-xl font-semibold tracking-tight text-foreground">{greeting()}, {firstName}</h1>
+      <p className="text-sm text-muted-foreground">
+        {connected
+          ? 'Finish setting up to start sending on WhatsApp.'
+          : "Let's get your WhatsApp Business account live."}
       </p>
-    </Link>
+    </div>
   );
 }
 
 /* ----------------------------- onboarding ----------------------------- */
 
-function OnboardingChecklist({
-  steps,
-  stepsDone,
-  isNew,
-}: {
-  steps: Step[];
-  stepsDone: number;
-  isNew: boolean;
-}): JSX.Element {
+function OnboardingChecklist({ steps, stepsDone }: { steps: Step[]; stepsDone: number }): JSX.Element {
   return (
     <Card className="overflow-hidden">
       <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border bg-secondary/30">
-        <div>
-          <CardTitle>{isNew ? 'Getting started' : 'Finish setting up'}</CardTitle>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Complete these steps to start sending on WhatsApp.
-          </p>
-        </div>
+        <CardTitle>Getting started</CardTitle>
         <div className="text-right">
           <p className="text-sm font-semibold text-foreground tabular-nums">
             {stepsDone}/{steps.length}
@@ -463,12 +349,7 @@ function OnboardingChecklist({
                   <Circle className="size-5 shrink-0 text-muted-foreground/40" />
                 )}
                 <span className="min-w-0 flex-1">
-                  <span
-                    className={cn(
-                      'block text-sm font-medium',
-                      s.done ? 'text-muted-foreground line-through' : 'text-foreground',
-                    )}
-                  >
+                  <span className={cn('block text-sm font-medium', s.done ? 'text-muted-foreground line-through' : 'text-foreground')}>
                     {s.title}
                   </span>
                   <span className="block text-xs text-muted-foreground">{s.description}</span>
@@ -502,28 +383,29 @@ function readDismissed(): Set<string> {
 }
 
 /**
- * The attention queue. Each item carries a `signature` derived from its current magnitude, so a
- * dismissed alert stays collapsed only until the underlying number materially changes — then it
- * resurfaces. Resolved conditions simply stop being produced. Review navigates; Dismiss hides.
- * (No "Retry" — re-sending is a deliberate action that belongs on the Campaigns/Inbox flows, not
- * a one-click dashboard button, so we link there rather than invent a send here.)
+ * Light inline attention queue. Each item carries a `signature` derived from its current magnitude,
+ * so a dismissed alert stays collapsed only until the underlying number materially changes — then it
+ * resurfaces. Resolved conditions simply stop being produced. (No "Retry" — re-sending belongs on
+ * the Campaigns/Inbox flows, so we link there rather than invent a send here.)
  */
 function AttentionQueue({
   today,
   last30,
   deliveryRate,
+  pendingTemplates,
   loading,
 }: {
   today: Counts;
   last30: Counts;
   deliveryRate: number | null;
+  pendingTemplates: number;
   loading: boolean;
 }): JSX.Element | null {
   const [dismissed, setDismissed] = useState<Set<string>>(readDismissed);
 
   const items = useMemo(
-    () => buildAttention(today, last30, deliveryRate),
-    [today, last30, deliveryRate],
+    () => buildAttention(today, last30, deliveryRate, pendingTemplates),
+    [today, last30, deliveryRate, pendingTemplates],
   );
 
   const dismiss = useCallback((signature: string) => {
@@ -533,7 +415,7 @@ function AttentionQueue({
       try {
         localStorage.setItem(DISMISS_KEY, JSON.stringify([...next]));
       } catch {
-        /* storage unavailable — dismissal is best-effort, in-memory only */
+        /* storage unavailable — dismissal is best-effort */
       }
       return next;
     });
@@ -549,32 +431,32 @@ function AttentionQueue({
         <div
           key={item.signature}
           className={cn(
-            'flex items-center gap-3 rounded-lg border px-4 py-3 text-sm',
+            'flex items-center gap-2.5 rounded-md border px-3 py-2 text-sm',
             item.tone === 'danger'
-              ? 'border-destructive/25 bg-destructive/5'
-              : 'border-warning/25 bg-warning/10',
+              ? 'border-destructive/20 bg-destructive/5'
+              : 'border-warning/20 bg-warning/5',
           )}
         >
           <AlertTriangle
-            className={cn(
-              'size-4 shrink-0',
-              item.tone === 'danger' ? 'text-destructive-emphasis' : 'text-warning-emphasis',
-            )}
+            className={cn('size-4 shrink-0', item.tone === 'danger' ? 'text-destructive-emphasis' : 'text-warning-emphasis')}
           />
-          <div className="min-w-0 flex-1">
-            <p className="font-medium text-foreground">{item.title}</p>
-            <p className="truncate text-xs text-muted-foreground">{item.description}</p>
-          </div>
-          <Button asChild size="sm" variant={item.tone === 'danger' ? 'default' : 'outline'} className="shrink-0">
-            <Link to={item.to}>{item.reviewLabel}</Link>
-          </Button>
+          <span className="min-w-0 flex-1 truncate text-foreground">
+            <span className="font-medium">{item.title}</span>
+            <span className="hidden text-muted-foreground sm:inline"> — {item.description}</span>
+          </span>
+          <Link
+            to={item.to}
+            className="shrink-0 text-xs font-medium text-primary-emphasis hover:underline"
+          >
+            {item.reviewLabel}
+          </Link>
           <button
             type="button"
             onClick={() => dismiss(item.signature)}
             aria-label={`Dismiss: ${item.title}`}
-            className="shrink-0 rounded-md p-1.5 text-muted-foreground outline-none transition-colors hover:bg-foreground/5 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className="shrink-0 rounded p-1 text-muted-foreground outline-none transition-colors hover:bg-foreground/5 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <X className="size-4" />
+            <X className="size-3.5" />
           </button>
         </div>
       ))}
@@ -596,7 +478,6 @@ function KpiCard({
   to,
   label,
   tooltip,
-  icon: Icon,
   loading,
   value,
   format,
@@ -609,7 +490,6 @@ function KpiCard({
   to: string;
   label: string;
   tooltip: string;
-  icon: LucideIcon;
   loading?: boolean;
   value: number | null;
   format: (n: number) => string;
@@ -620,39 +500,34 @@ function KpiCard({
   trend?: Trend | null;
 }): JSX.Element {
   return (
-    <Card className="group relative h-full p-5 transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <Card className="group relative h-full p-4 transition-all hover:-translate-y-0.5 hover:shadow-md">
       <Link to={to} className="absolute inset-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={label} />
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <span className="text-sm font-medium text-muted-foreground">{label}</span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={(e) => e.preventDefault()}
-                aria-label={`About ${label}`}
-                className="relative z-10 rounded p-0.5 text-muted-foreground/50 outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <Info className="size-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-[15rem] normal-case">{tooltip}</TooltipContent>
-          </Tooltip>
-        </div>
-        <span className={cn('text-muted-foreground [&_svg]:size-4', tone === 'danger' && (value ?? 0) > 0 && 'text-destructive-emphasis')}>
-          <Icon />
-        </span>
+      <div className="flex items-center gap-1.5">
+        <span className="text-sm font-medium text-muted-foreground">{label}</span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={(e) => e.preventDefault()}
+              aria-label={`About ${label}`}
+              className="relative z-10 rounded p-0.5 text-muted-foreground/50 outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Info className="size-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-[15rem] normal-case">{tooltip}</TooltipContent>
+        </Tooltip>
       </div>
 
-      <div className="mt-3 flex items-end gap-2">
+      <div className="mt-2.5 flex items-end gap-2">
         {loading ? (
           <Skeleton className="h-8 w-20 rounded" />
         ) : value === null ? (
-          <span className="text-3xl font-semibold leading-none tracking-tight text-foreground">{emptyLabel}</span>
+          <span className="text-[26px] font-semibold leading-none tracking-tight text-foreground">{emptyLabel}</span>
         ) : (
           <span
             className={cn(
-              'text-3xl font-semibold leading-none tracking-tight text-foreground',
+              'text-[26px] font-semibold leading-none tracking-tight text-foreground',
               tone === 'danger' && value > 0 && 'text-destructive-emphasis',
             )}
           >
@@ -664,7 +539,7 @@ function KpiCard({
 
       <p
         className={cn(
-          'mt-2 flex items-center gap-1 text-xs',
+          'mt-1.5 flex items-center gap-1 text-xs',
           hintTone === 'danger'
             ? 'text-destructive-emphasis'
             : hintTone === 'warning'
@@ -724,8 +599,6 @@ function CampaignRow({ c }: { c: CampaignDTO }): JSX.Element {
   const total = c.totalRecipients || 0;
   const done = c.sent + c.failed;
   const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : bucket === 'completed' ? 100 : 0;
-  const rate = c.sent > 0 ? Math.round((c.delivered / c.sent) * 100) : null;
-  const when = c.completedAt ?? c.scheduledAt ?? c.createdAt;
 
   return (
     <Link to={`/campaigns?id=${encodeURIComponent(c.id)}`} className="block px-4 py-3 transition-colors hover:bg-secondary/50">
@@ -735,34 +608,18 @@ function CampaignRow({ c }: { c: CampaignDTO }): JSX.Element {
           {bucket}
         </Badge>
       </div>
-
-      <div className="mt-2 flex items-center gap-2">
+      <div className="mt-2 flex items-center gap-2.5">
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div
             className={cn('h-full rounded-full transition-all', bucket === 'failed' ? 'bg-destructive' : 'bg-primary')}
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">{pct}%</span>
-      </div>
-
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-        <Meta icon={Users} text={`${formatCount(total)} audience`} />
-        {rate !== null && <Meta icon={BadgeCheck} text={`${rate}% delivered`} />}
-        {c.failed > 0 && <Meta icon={AlertTriangle} text={`${formatCount(c.failed)} failed`} tone="danger" />}
-        <Meta icon={FileText} text={c.templateName} />
-        <span className="ml-auto tabular-nums">{compactAgo(when)}</span>
+        <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
+          {formatCount(c.sent)}/{formatCount(total)}
+        </span>
       </div>
     </Link>
-  );
-}
-
-function Meta({ icon: Icon, text, tone }: { icon: LucideIcon; text: string; tone?: 'danger' }): JSX.Element {
-  return (
-    <span className={cn('inline-flex max-w-[12rem] items-center gap-1', tone === 'danger' && 'text-destructive-emphasis')}>
-      <Icon className="size-3 shrink-0" />
-      <span className="truncate">{text}</span>
-    </span>
   );
 }
 
@@ -776,7 +633,7 @@ const ACTIVITY_VARIANT: Record<string, BadgeProps['variant']> = {
   failed: 'danger',
 };
 
-/** Pick an icon + tint that reflects what the message actually is (failure > template > direction). */
+/** Pick an icon + tint reflecting what the message actually is (failure > template > direction). */
 function activityVisual(m: ReportMessageRow): { Icon: LucideIcon; cls: string } {
   if (m.status === 'failed') return { Icon: AlertTriangle, cls: 'bg-destructive/10 text-destructive-emphasis' };
   if (m.type === 'template') return { Icon: FileText, cls: 'bg-info/10 text-info-emphasis' };
@@ -922,13 +779,18 @@ interface AttentionItem {
 }
 
 /** Derive the attention queue strictly from real numbers — no invented events. */
-function buildAttention(today: Counts, last30: Counts, deliveryRate: number | null): AttentionItem[] {
+function buildAttention(
+  today: Counts,
+  last30: Counts,
+  deliveryRate: number | null,
+  pendingTemplates: number,
+): AttentionItem[] {
   const items: AttentionItem[] = [];
   if (last30.failed > 0) {
     items.push({
       signature: `failed:${last30.failed}`,
       title: `${formatCount(last30.failed)} failed deliveries`,
-      description: 'Review failures from the last 30 days and check the error reasons.',
+      description: 'review failures from the last 30 days',
       to: '/reports',
       reviewLabel: 'Review',
       tone: 'danger',
@@ -938,9 +800,19 @@ function buildAttention(today: Counts, last30: Counts, deliveryRate: number | nu
     items.push({
       signature: `delivery:${Math.round(deliveryRate)}`,
       title: `Delivery rate at ${deliveryRate.toFixed(1)}%`,
-      description: 'Below the 95% healthy threshold — review recent sends.',
+      description: 'below the 95% healthy threshold',
       to: '/reports',
       reviewLabel: 'Review',
+      tone: 'warning',
+    });
+  }
+  if (pendingTemplates > 0) {
+    items.push({
+      signature: `pending-tpl:${pendingTemplates}`,
+      title: `${pendingTemplates} template${pendingTemplates === 1 ? '' : 's'} awaiting approval`,
+      description: 'check their status with Meta',
+      to: '/templates',
+      reviewLabel: 'View',
       tone: 'warning',
     });
   }
@@ -948,7 +820,7 @@ function buildAttention(today: Counts, last30: Counts, deliveryRate: number | nu
     items.push({
       signature: `idle:${new Date().toISOString().slice(0, 10)}`,
       title: 'Nothing sent today',
-      description: 'Launch a campaign to keep your audience engaged.',
+      description: 'launch a campaign to keep momentum',
       to: '/campaigns',
       reviewLabel: 'Send',
       tone: 'warning',
