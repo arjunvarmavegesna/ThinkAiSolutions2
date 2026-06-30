@@ -7,9 +7,13 @@
  */
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { Eye, EyeOff, Loader2, Lock, Mail } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { landingPathForRole } from '../auth/ProtectedRoute';
+import { auth } from '../lib/firebase';
 import GoogleIcon from '../components/GoogleIcon';
+import MicrosoftIcon from '../components/MicrosoftIcon';
 
 /** Location.state we may receive from ProtectedRoute's redirect. */
 interface FromState {
@@ -35,7 +39,11 @@ function friendlyAuthError(err: unknown): string {
       return 'Too many attempts. Please wait a moment and try again.';
     case 'auth/popup-closed-by-user':
     case 'auth/cancelled-popup-request':
-      return 'The Google sign-in was cancelled.';
+      return 'The sign-in was cancelled.';
+    case 'auth/account-exists-with-different-credential':
+      return 'An account already exists with this email using a different sign-in method.';
+    case 'auth/operation-not-allowed':
+      return 'This sign-in method is not enabled. Contact your administrator.';
     case 'auth/network-request-failed':
       return 'Network error. Check your connection and try again.';
     default:
@@ -44,14 +52,17 @@ function friendlyAuthError(err: unknown): string {
 }
 
 export function Login(): JSX.Element {
-  const { user, role, loading, login, signInWithGoogle } = useAuth();
+  const { user, role, loading, login, signInWithGoogle, signInWithMicrosoft } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   // Where to go once authenticated: the originally-requested page, else role home.
   const fromPath = (location.state as FromState | null)?.from?.pathname;
@@ -67,6 +78,7 @@ export function Login(): JSX.Element {
     e.preventDefault();
     if (submitting) return;
     setError(null);
+    setNotice(null);
     setSubmitting(true);
     try {
       await login(email.trim(), password);
@@ -82,6 +94,7 @@ export function Login(): JSX.Element {
   async function handleGoogle(): Promise<void> {
     if (submitting) return;
     setError(null);
+    setNotice(null);
     setSubmitting(true);
     try {
       await signInWithGoogle();
@@ -91,8 +104,48 @@ export function Login(): JSX.Element {
     }
   }
 
+  // Microsoft sign-in for EXISTING users (same flow as Google — no provisioning).
+  async function handleMicrosoft(): Promise<void> {
+    if (submitting) return;
+    setError(null);
+    setNotice(null);
+    setSubmitting(true);
+    try {
+      await signInWithMicrosoft();
+    } catch (err) {
+      setError(friendlyAuthError(err));
+      setSubmitting(false);
+    }
+  }
+
+  // Send a Firebase password-reset email to the address currently typed in.
+  async function handleForgotPassword(): Promise<void> {
+    if (resetting) return;
+    setError(null);
+    setNotice(null);
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setError('Enter your email above, then tap “Forgot password?”.');
+      return;
+    }
+    setResetting(true);
+    try {
+      await sendPasswordResetEmail(auth, trimmed);
+      setNotice(`Password reset link sent to ${trimmed}.`);
+    } catch (err) {
+      setError(friendlyAuthError(err));
+    } finally {
+      setResetting(false);
+    }
+  }
+
+  const socialBtn =
+    'flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-xs transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60';
+  const inputBase =
+    'w-full rounded-lg border border-border bg-card py-2.5 pl-10 text-sm text-foreground shadow-xs outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/25 disabled:bg-muted/50';
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-12">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
@@ -104,85 +157,113 @@ export function Login(): JSX.Element {
               height={56}
             />
           </div>
-          <h1 className="text-xl font-semibold text-slate-900">ThinkAiSolutions</h1>
-          <p className="mt-1 text-sm text-slate-500">WhatsApp Business Platform</p>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">ThinkAiSolutions</h1>
+          <p className="mt-1 text-sm text-muted-foreground">WhatsApp Business Platform</p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+          className="space-y-5 rounded-2xl border border-border bg-card p-6 shadow-md"
         >
-          <button
-            type="button"
-            onClick={handleGoogle}
-            disabled={submitting}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-          >
+          <button type="button" onClick={handleGoogle} disabled={submitting} className={socialBtn}>
             <GoogleIcon />
             Continue with Google
           </button>
 
+          <button type="button" onClick={handleMicrosoft} disabled={submitting} className={socialBtn}>
+            <MicrosoftIcon />
+            Continue with Microsoft
+          </button>
+
           <div className="flex items-center gap-3">
-            <span className="h-px flex-1 bg-slate-200" />
-            <span className="text-xs uppercase tracking-wide text-slate-400">or</span>
-            <span className="h-px flex-1 bg-slate-200" />
+            <span className="h-px flex-1 bg-border" />
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">or</span>
+            <span className="h-px flex-1 bg-border" />
           </div>
 
           <div>
-            <label htmlFor="email" className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-foreground">
               Email
             </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={submitting}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-50"
-              placeholder="you@company.com"
-            />
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={submitting}
+                className={inputBase}
+                placeholder="you@company.com"
+              />
+            </div>
           </div>
 
           <div>
-            <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={submitting}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-50"
-              placeholder="••••••••"
-            />
+            <div className="mb-1.5 flex items-center justify-between">
+              <label htmlFor="password" className="block text-sm font-medium text-foreground">
+                Password
+              </label>
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={resetting || submitting}
+                className="text-xs font-medium text-primary transition hover:text-primary-emphasis hover:underline disabled:opacity-60"
+              >
+                {resetting ? 'Sending…' : 'Forgot password?'}
+              </button>
+            </div>
+            <div className="relative">
+              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={submitting}
+                className={`${inputBase} pr-10`}
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((s) => !s)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           {error && (
-            <p
-              className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
-              role="alert"
-            >
+            <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
               {error}
+            </p>
+          )}
+
+          {notice && (
+            <p className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success-emphasis" role="status">
+              {notice}
             </p>
           )}
 
           <button
             type="submit"
             disabled={submitting}
-            className="flex w-full items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary-emphasis focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60"
           >
+            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
             {submitting ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-slate-500">
+        <p className="mt-6 text-center text-sm text-muted-foreground">
           New here?{' '}
-          <Link to="/signup" className="font-medium text-emerald-700 hover:underline">
+          <Link to="/signup" className="font-medium text-primary hover:underline">
             Create an account
           </Link>
         </p>
